@@ -131,7 +131,10 @@ async fn reset(State(ctx): State<AppContext>, Json(params): Json<ResetParams>) -
 
 /// Creates a user login and returns a token
 async fn login(State(ctx): State<AppContext>, Json(params): Json<LoginParams>) -> Result<Response> {
-    let user = users::Model::find_by_email(&ctx.db, &params.username).await?;
+    let user = match users::Model::find_by_email(&ctx.db, &params.username).await {
+        Ok(u) => Ok(u),
+        Err(_) => users::Model::find_by_username(&ctx.db, &params.username).await,
+    }?;
 
     let valid = user.verify_password(&params.password);
 

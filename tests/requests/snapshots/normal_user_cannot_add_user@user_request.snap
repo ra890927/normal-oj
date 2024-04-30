@@ -1,0 +1,8 @@
+---
+source: tests/requests/user.rs
+expression: "(response.status_code(), response.text())"
+---
+(
+    403,
+    "{\"msg\":\"Insufficient Permissions\"}",
+)

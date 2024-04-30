@@ -1,6 +1,7 @@
 use insta::{assert_debug_snapshot, with_settings};
 use loco_rs::testing;
-use normal_oj::app::App;
+use normal_oj::{app::App, models::users};
+use serde_json::json;
 use serial_test::serial;
 
 use super::prepare_data;
@@ -30,6 +31,84 @@ async fn can_get_current_user() {
             .add_header(auth_key, auth_value)
             .await;
 
+        with_settings!({
+            filters => testing::cleanup_user_model()
+        }, {
+            assert_debug_snapshot!((response.status_code(), response.text()));
+        });
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn normal_user_cannot_add_user() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        let user = prepare_data::init_user_login(&request, &ctx).await;
+        let create_user_payload = json!({
+            "username": "new_user",
+            "email": "somebody@noj.tw",
+            "password": "password",
+        });
+
+        let (auth_key, auth_value) = prepare_data::auth_header(&user.token);
+        let response = request
+            .post("/api/user")
+            .json(&create_user_payload)
+            .add_header(auth_key, auth_value)
+            .await;
+
+        with_settings!({
+            filters => testing::cleanup_user_model()
+        }, {
+            assert_debug_snapshot!((response.status_code(), response.text()));
+        });
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn admin_can_add_user() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+
+        let username = "new_user";
+        let password = "password";
+
+        let user = users::Model::find_by_username(&ctx.db, "first_admin")
+            .await
+            .unwrap();
+        let jwt_secret = ctx.config.get_jwt_config().unwrap();
+        let token = user
+            .generate_jwt(&jwt_secret.secret, &jwt_secret.expiration)
+            .unwrap();
+
+        let create_user_payload = json!({
+            "username": username,
+            "email": "somebody@noj.tw",
+            "password": password,
+        });
+
+        let (auth_key, auth_value) = prepare_data::auth_header(&token);
+        let response = request
+            .post("/api/user")
+            .json(&create_user_payload)
+            .add_header(auth_key, auth_value)
+            .await;
+        assert_debug_snapshot!((response.status_code(), response.text()));
+
+        let response = request
+            .post("/api/auth/login")
+            .json(&json!({
+                "username": username,
+                "password": password,
+            }))
+            .await;
         with_settings!({
             filters => testing::cleanup_user_model()
         }, {
