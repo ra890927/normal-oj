@@ -25,7 +25,7 @@ async fn can_register() {
     testing::request::<App, _, _>(|request, ctx| async move {
         let email = "test@loco.com";
         let payload = serde_json::json!({
-            "name": "loco",
+            "username": "loco",
             "email": email,
             "password": "12341234"
         });
@@ -59,7 +59,7 @@ async fn can_login_with_verify(#[case] test_name: &str, #[case] password: &str) 
     testing::request::<App, _, _>(|request, ctx| async move {
         let email = "test@loco.com";
         let register_payload = serde_json::json!({
-            "name": "loco",
+            "username": "loco",
             "email": email,
             "password": "12341234"
         });
@@ -110,7 +110,7 @@ async fn can_login_without_verify() {
         let email = "test@loco.com";
         let password = "12341234";
         let register_payload = serde_json::json!({
-            "name": "loco",
+            "username": "loco",
             "email": email,
             "password": password
         });

@@ -10,7 +10,7 @@ Ok(
         pid: PID,
         email: "test@loco.com",
         password: "PASSWORD",
-        api_key: "lo-PID",
+        api_key: "noral-oj-PID",
         name: "loco",
         reset_token: None,
         reset_sent_at: None,

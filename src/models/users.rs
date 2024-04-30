@@ -16,7 +16,7 @@ pub struct LoginParams {
 pub struct RegisterParams {
     pub email: String,
     pub password: String,
-    pub name: String,
+    pub username: String,
 }
 
 #[derive(Debug, Validate, Deserialize)]
@@ -46,7 +46,7 @@ impl ActiveModelBehavior for super::_entities::users::ActiveModel {
         if insert {
             let mut this = self;
             this.pid = ActiveValue::Set(Uuid::new_v4());
-            this.api_key = ActiveValue::Set(format!("lo-{}", Uuid::new_v4()));
+            this.api_key = ActiveValue::Set(format!("noral-oj-{}", Uuid::new_v4()));
             Ok(this)
         } else {
             Ok(self)
@@ -175,7 +175,7 @@ impl super::_entities::users::Model {
         let user = users::ActiveModel {
             email: ActiveValue::set(params.email.to_string()),
             password: ActiveValue::set(password_hash),
-            name: ActiveValue::set(params.name.to_string()),
+            name: ActiveValue::set(params.username.to_string()),
             ..Default::default()
         }
         .insert(&txn)
