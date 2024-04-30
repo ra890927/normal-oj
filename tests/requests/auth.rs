@@ -1,3 +1,4 @@
+use axum::http::StatusCode;
 use insta::{assert_debug_snapshot, with_settings};
 use loco_rs::testing;
 use normal_oj::{app::App, models::users};
@@ -231,6 +232,39 @@ async fn can_change_password() {
             }))
             .await;
         resp.assert_status_ok();
+    })
+    .await;
+}
+
+#[rstest]
+#[case("email", Some("user1@example.com"), 409)]
+#[case("email", Some("user48763@example.com"), 200)]
+#[case("username", Some("user1"), 409)]
+#[case("username", Some("user48763"), 200)]
+#[case("name", None, 400)]
+#[case("mail", None, 400)]
+#[tokio::test]
+#[serial]
+async fn can_check_identity_usage(
+    #[case] item: &str,
+    #[case] content: Option<&str>,
+    #[case] expected_code: u16,
+) {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+
+        let check_data = content.map(|c| {
+            serde_json::json!({
+                item: c,
+            })
+        });
+        let resp = request
+            .post(&format!("/api/auth/check/{item}"))
+            .json(&check_data)
+            .await;
+        resp.assert_status(StatusCode::from_u16(expected_code).unwrap());
     })
     .await;
 }

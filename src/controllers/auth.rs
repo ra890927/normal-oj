@@ -1,3 +1,4 @@
+use axum::http::StatusCode;
 use loco_rs::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -31,6 +32,12 @@ pub struct ResetParams {
 pub struct ChangePasswordParams {
     pub old_password: String,
     pub new_password: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CheckItemParams {
+    pub username: Option<String>,
+    pub email: Option<String>,
 }
 
 /// Register function creates a new user with the given parameters and sends a
@@ -159,6 +166,52 @@ async fn change_password(
     format::json(json!({"msg": "Password Has Been Changed"}))
 }
 
+async fn check(
+    State(ctx): State<AppContext>,
+    Path(item): Path<String>,
+    Json(params): Json<CheckItemParams>,
+) -> Result<Response> {
+    match item.as_str() {
+        "username" => {
+            let Some(username) = params.username else {
+                return format::render()
+                    .status(StatusCode::UNPROCESSABLE_ENTITY)
+                    .json(json!({"msg": "missing field 'username'"}));
+            };
+
+            match users::Model::find_by_username(&ctx.db, &username).await {
+                Ok(_) => format::render()
+                    .status(StatusCode::CONFLICT)
+                    .json(json!({"valid": 1})),
+                Err(ModelError::EntityNotFound) => format::json(json!({"valid": 1})),
+                Err(_) => format::render()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .empty(),
+            }
+        }
+        "email" => {
+            let Some(email) = params.email else {
+                return format::render()
+                    .status(StatusCode::UNPROCESSABLE_ENTITY)
+                    .json(json!({"msg": "missing field 'username'"}));
+            };
+
+            match users::Model::find_by_email(&ctx.db, &email).await {
+                Ok(_) => format::render()
+                    .status(StatusCode::CONFLICT)
+                    .json(json!({"valid": 1})),
+                Err(ModelError::EntityNotFound) => format::json(json!({"valid": 1})),
+                Err(_) => format::render()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .empty(),
+            }
+        }
+        _ => format::render()
+            .status(StatusCode::BAD_REQUEST)
+            .json(json!({"msg": "Invalid Checking Type"})),
+    }
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("auth")
@@ -168,4 +221,5 @@ pub fn routes() -> Routes {
         .add("/forgot", post(forgot))
         .add("/reset", post(reset))
         .add("/change-password", post(change_password))
+        .add("/check/:item", post(check))
 }
