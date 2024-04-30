@@ -80,7 +80,7 @@ async fn can_login_with_verify(#[case] test_name: &str, #[case] password: &str) 
         let response = request
             .post("/api/auth/login")
             .json(&serde_json::json!({
-                "email": email,
+                "username": email,
                 "password": password
             }))
             .await;
@@ -125,7 +125,7 @@ async fn can_login_without_verify() {
         let response = request
             .post("/api/auth/login")
             .json(&serde_json::json!({
-                "email": email,
+                "username": email,
                 "password": password
             }))
             .await;
@@ -175,7 +175,7 @@ async fn can_reset_password() {
         let response = request
             .post("/api/auth/login")
             .json(&serde_json::json!({
-                "email": user.email,
+                "username": user.email,
                 "password": new_password
             }))
             .await;

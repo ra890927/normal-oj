@@ -8,7 +8,8 @@ pub use super::_entities::users::{self, ActiveModel, Entity, Model};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LoginParams {
-    pub email: String,
+    /// login identity, with try to use this field as username or email to find the user model
+    pub username: String,
     pub password: String,
 }
 

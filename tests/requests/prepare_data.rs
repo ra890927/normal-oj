@@ -35,7 +35,7 @@ pub async fn init_user_login(request: &TestServer, ctx: &AppContext) -> LoggedIn
     let response = request
         .post("/api/auth/login")
         .json(&serde_json::json!({
-            "email": USER_EMAIL,
+            "username": USER_EMAIL,
             "password": USER_PASSWORD
         }))
         .await;
