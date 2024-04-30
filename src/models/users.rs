@@ -140,6 +140,19 @@ impl super::_entities::users::Model {
         user.ok_or_else(|| ModelError::EntityNotFound)
     }
 
+    /// finds a user by the provided username
+    ///
+    /// # Errors
+    ///
+    /// When could not find user by the given username or DB query error
+    pub async fn find_by_username(db: &DatabaseConnection, username: &str) -> ModelResult<Self> {
+        let user = users::Entity::find()
+            .filter(users::Column::Name.eq(username))
+            .one(db)
+            .await?;
+        user.ok_or_else(|| ModelError::EntityNotFound)
+    }
+
     /// Verifies whether the provided plain password matches the hashed password
     ///
     /// # Errors
@@ -252,7 +265,8 @@ impl super::_entities::users::ActiveModel {
     /// updates it in the database.
     ///
     /// This method hashes the provided password and sets it as the new password
-    /// for the user.    
+    /// for the user.
+    ///
     /// # Errors
     ///
     /// when has DB query error or could not hashed the given password

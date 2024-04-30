@@ -110,6 +110,21 @@ async fn can_find_by_pid() {
 
 #[tokio::test]
 #[serial]
+async fn can_find_by_username() {
+    configure_insta!();
+
+    let boot = testing::boot_test::<App>().await.unwrap();
+    testing::seed::<App>(&boot.app_context.db).await.unwrap();
+
+    let existing_user = Model::find_by_username(&boot.app_context.db, "user1").await;
+    let non_existing_user = Model::find_by_username(&boot.app_context.db, "user48763").await;
+
+    assert_debug_snapshot!(existing_user);
+    assert_debug_snapshot!(non_existing_user);
+}
+
+#[tokio::test]
+#[serial]
 async fn can_verification_token() {
     configure_insta!();
 
