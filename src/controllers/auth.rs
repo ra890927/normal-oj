@@ -1,5 +1,6 @@
 use loco_rs::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::{
     mailers::auth::AuthMailer,
@@ -9,6 +10,7 @@ use crate::{
     },
     views::auth::LoginResponse,
 };
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct VerifyParams {
     pub token: String,
@@ -23,6 +25,12 @@ pub struct ForgotParams {
 pub struct ResetParams {
     pub token: String,
     pub password: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ChangePasswordParams {
+    pub old_password: String,
+    pub new_password: String,
 }
 
 /// Register function creates a new user with the given parameters and sends a
@@ -133,6 +141,24 @@ async fn login(State(ctx): State<AppContext>, Json(params): Json<LoginParams>) -
     format::json(LoginResponse::new(&user, &token))
 }
 
+async fn change_password(
+    State(ctx): State<AppContext>,
+    auth: auth::JWT,
+    Json(params): Json<ChangePasswordParams>,
+) -> Result<Response> {
+    let user = users::Model::find_by_claims_key(&ctx.db, &auth.claims.pid).await?;
+
+    if !user.verify_password(&params.old_password) {
+        return unauthorized("Wrong Password");
+    }
+
+    user.into_active_model()
+        .reset_password(&ctx.db, &params.new_password)
+        .await?;
+
+    format::json(json!({"msg": "Password Has Been Changed"}))
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("auth")
@@ -141,4 +167,5 @@ pub fn routes() -> Routes {
         .add("/login", post(login))
         .add("/forgot", post(forgot))
         .add("/reset", post(reset))
+        .add("/change-password", post(change_password))
 }

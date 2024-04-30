@@ -190,3 +190,47 @@ async fn can_reset_password() {
     })
     .await;
 }
+
+#[tokio::test]
+#[serial]
+async fn can_change_password() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        let login_data = prepare_data::init_user_login(&request, &ctx).await;
+        let new_password = "here-is-a-new-password";
+
+        let (auth_key, auth_value) = prepare_data::auth_header(&login_data.token);
+        let change_pass_payload = serde_json::json!({
+            "old_password": login_data.password_plaintext,
+            "new_password": new_password,
+        });
+        let resp = request
+            .post("/api/auth/change-password")
+            .json(&change_pass_payload)
+            .add_header(auth_key, auth_value)
+            .await;
+        resp.assert_status_ok();
+
+        // login with old password will fail
+        let resp = request
+            .post("/api/auth/login")
+            .json(&serde_json::json!({
+                "username": login_data.user.email,
+                "password": login_data.password_plaintext,
+            }))
+            .await;
+        resp.assert_status_unauthorized();
+
+        // login with new password
+        let resp = request
+            .post("/api/auth/login")
+            .json(&serde_json::json!({
+                "username": login_data.user.email,
+                "password": new_password
+            }))
+            .await;
+        resp.assert_status_ok();
+    })
+    .await;
+}

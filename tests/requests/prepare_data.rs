@@ -8,6 +8,8 @@ const USER_PASSWORD: &str = "1234";
 pub struct LoggedInUser {
     pub user: users::Model,
     pub token: String,
+    /// The unhashed password, stored here because we can't get that from user model
+    pub password_plaintext: String,
 }
 
 pub async fn init_user_login(request: &TestServer, ctx: &AppContext) -> LoggedInUser {
@@ -47,6 +49,7 @@ pub async fn init_user_login(request: &TestServer, ctx: &AppContext) -> LoggedIn
             .await
             .unwrap(),
         token: login_response.token,
+        password_plaintext: USER_PASSWORD.to_string(),
     }
 }
 
