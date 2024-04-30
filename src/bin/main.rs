@@ -1,6 +1,6 @@
 use loco_rs::cli;
-use normal_oj::app::App;
 use migration::Migrator;
+use normal_oj::app::App;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
