@@ -1,8 +1,7 @@
-# Welcome to Loco :train:
+# Normal Online Judge
 
-Loco is a web and API framework running on Rust.
-
-This is the **Rest API starter** which includes a `User` model and authentication based on JWT.
+An attempt to rewrite [Normal-OJ/Back-End](https://github.com/Normal-OJ/Back-End) (and maybe sandbox server) in Rust.  
+Final project of NYCU Software Testing, 2024 Spring.
 
 ## Quick Start
 
