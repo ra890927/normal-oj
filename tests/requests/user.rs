@@ -1,4 +1,4 @@
-use axum::http::StatusCode;
+use axum::http::{response, StatusCode};
 use insta::{assert_debug_snapshot, assert_json_snapshot, with_settings};
 use loco_rs::{app::AppContext, testing};
 use normal_oj::{
@@ -204,6 +204,52 @@ async fn can_filter_user_by_role() {
         }, {
             assert_json_snapshot!(response);
         });
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn can_batch_signup() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+        let payload = vec!["username,email,password".to_string()]
+            .into_iter()
+            .chain((3..6).map(|i| format!("user{i},user{i}@noj.tw,user{i}")))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let payload = json!({"new_users": payload});
+
+        let user = users::Model::find_by_username(&ctx.db, "user1")
+            .await
+            .unwrap();
+        let (auth_key, auth_value) = prepare_data::auth_header(&create_token(&user, &ctx).await);
+        let response = request
+            .post("/api/auth/batch-signup")
+            .json(&payload)
+            .add_header(auth_key, auth_value)
+            .await;
+        response.assert_status_forbidden();
+
+        let user = users::Model::find_by_username(&ctx.db, "first_admin")
+            .await
+            .unwrap();
+        let (auth_key, auth_value) = prepare_data::auth_header(&create_token(&user, &ctx).await);
+        let response = request
+            .post("/api/auth/batch-signup")
+            .add_header(auth_key, auth_value)
+            .json(&payload)
+            .await;
+        response.assert_status_success();
+
+        for i in 3..6 {
+            let u = users::Model::find_by_username(&ctx.db, &format!("user{i}"))
+                .await
+                .unwrap();
+            assert!(u.verify_password(&format!("user{i}")));
+        }
     })
     .await;
 }

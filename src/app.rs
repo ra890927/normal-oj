@@ -16,7 +16,7 @@ use sea_orm::DatabaseConnection;
 
 use crate::{
     controllers,
-    models::_entities::{courses, notes, users},
+    models::_entities::{courses, users},
     tasks,
     workers::downloader::DownloadWorker,
 };
