@@ -25,7 +25,7 @@ impl super::_entities::courses::Model {
     async fn find_by_column(
         db: &DatabaseConnection,
         column: impl sea_orm::ColumnTrait,
-        value: impl Into<sea_orm::Value>,
+        value: impl Into<sea_orm::Value> + Send,
     ) -> ModelResult<Self> {
         let course = courses::Entity::find()
             .filter(column.eq(value))

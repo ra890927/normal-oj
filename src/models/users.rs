@@ -45,7 +45,8 @@ pub enum Error {
     BatchSignupInvalidRole(BatchSignupItem),
 }
 
-pub fn int_to_role(i: i32) -> Option<Role> {
+#[must_use]
+pub const fn int_to_role(i: i32) -> Option<Role> {
     match i {
         0 => Some(Role::Admin),
         1 => Some(Role::Teacher),
@@ -54,7 +55,8 @@ pub fn int_to_role(i: i32) -> Option<Role> {
     }
 }
 
-pub fn role_to_int(r: Role) -> i32 {
+#[must_use]
+pub const fn role_to_int(r: &Role) -> i32 {
     match r {
         Role::Admin => 0,
         Role::Student => 1,
@@ -171,10 +173,15 @@ impl super::_entities::users::Model {
         Self::find_by_column(db, users::Column::Name, username).await
     }
 
+    /// finds a model by given column and value
+    ///
+    /// # Errors
+    ///
+    /// When cloud not find user by the given column or DB query error
     async fn find_by_column<C: ConnectionTrait>(
         db: &C,
         column: impl sea_orm::ColumnTrait,
-        value: impl Into<sea_orm::Value>,
+        value: impl Into<sea_orm::Value> + Send,
     ) -> ModelResult<Self> {
         let user = users::Entity::find()
             .filter(column.eq(value))
@@ -230,15 +237,22 @@ impl super::_entities::users::Model {
         Ok(user)
     }
 
+    /// Batch signup multiple users at once.
+    ///
+    /// # Errors
+    ///
+    /// - If the input role id cannot be mapped to a [`Role`] variant
+    /// - DB error
     pub async fn batch_signup(
         db: &DatabaseConnection,
         params: &BatchSignupParams,
     ) -> ModelResult<Vec<Self>> {
         let tx = db.begin().await?;
-        if let Some(r) = params.users.iter().find(|u| match u.role {
-            None => false,
-            Some(r) => int_to_role(r).is_none(),
-        }) {
+        if let Some(r) = params
+            .users
+            .iter()
+            .find(|u| u.role.map_or(false, |r| int_to_role(r).is_none()))
+        {
             return Err(ModelError::Any(Box::new(Error::BatchSignupInvalidRole(
                 r.clone(),
             ))));
