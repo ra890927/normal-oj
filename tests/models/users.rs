@@ -2,7 +2,7 @@ use insta::assert_debug_snapshot;
 use loco_rs::{model::ModelError, testing};
 use normal_oj::{
     app::App,
-    models::users::{self, Model, RegisterParams},
+    models::users::{self, BatchSignupItem, BatchSignupParams, Model, RegisterParams},
 };
 use rstest::rstest;
 use sea_orm::{ActiveModelTrait, ActiveValue, IntoActiveModel};
@@ -237,4 +237,36 @@ async fn can_reset_password(#[case] new_passward: &str) {
             .unwrap()
             .verify_password(new_passward)
     );
+}
+
+#[tokio::test]
+#[serial]
+async fn can_batch_signup() {
+    configure_insta!();
+
+    let boot = testing::boot_test::<App>().await.unwrap();
+    testing::seed::<App>(&boot.app_context.db).await.unwrap();
+
+    let params = BatchSignupParams {
+        course: None,
+        users: (3..6)
+            .map(|i| BatchSignupItem {
+                username: format!("user{i}"),
+                password: format!("user{i}"),
+                email: format!("user{i}@noj.tw"),
+                ..Default::default()
+            })
+            .collect::<Vec<_>>(),
+    };
+
+    users::Model::batch_signup(&boot.app_context.db, &params)
+        .await
+        .unwrap();
+
+    for u in &params.users {
+        let user = users::Model::find_by_username(&boot.app_context.db, &u.username)
+            .await
+            .unwrap();
+        assert!(user.verify_password(&u.password));
+    }
 }

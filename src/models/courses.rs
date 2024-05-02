@@ -13,6 +13,15 @@ impl super::_entities::courses::Model {
         Self::find_by_column(db, courses::Column::Name, name).await
     }
 
+    /// finds a course by id
+    ///
+    /// # Errors
+    ///
+    /// When could not find user by id or DB query error
+    pub async fn find_by_id(db: &DatabaseConnection, id: i32) -> ModelResult<Self> {
+        Self::find_by_column(db, courses::Column::Id, id).await
+    }
+
     async fn find_by_column(
         db: &DatabaseConnection,
         column: impl sea_orm::ColumnTrait,
