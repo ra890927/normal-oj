@@ -2,6 +2,7 @@
 
 pub mod prelude;
 
+pub mod courses;
 pub mod notes;
 pub mod sea_orm_active_enums;
 pub mod users;

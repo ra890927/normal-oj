@@ -22,5 +22,11 @@ Ok(
         ),
         email_verified_at: None,
         role: Student,
+        displayed_name: Some(
+            "",
+        ),
+        bio: Some(
+            "",
+        ),
     },
 )

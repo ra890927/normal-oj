@@ -18,5 +18,11 @@ Ok(
         email_verification_sent_at: None,
         email_verified_at: None,
         role: Student,
+        displayed_name: Some(
+            "",
+        ),
+        bio: Some(
+            "",
+        ),
     },
 )
