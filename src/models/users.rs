@@ -78,11 +78,7 @@ impl super::_entities::users::Model {
     ///
     /// When could not find user by the given token or DB query error
     pub async fn find_by_email(db: &DatabaseConnection, email: &str) -> ModelResult<Self> {
-        let user = users::Entity::find()
-            .filter(users::Column::Email.eq(email))
-            .one(db)
-            .await?;
-        user.ok_or_else(|| ModelError::EntityNotFound)
+        Self::find_by_column(db, users::Column::Email, email).await
     }
 
     /// finds a user by the provided verification token
@@ -94,11 +90,7 @@ impl super::_entities::users::Model {
         db: &DatabaseConnection,
         token: &str,
     ) -> ModelResult<Self> {
-        let user = users::Entity::find()
-            .filter(users::Column::EmailVerificationToken.eq(token))
-            .one(db)
-            .await?;
-        user.ok_or_else(|| ModelError::EntityNotFound)
+        Self::find_by_column(db, users::Column::EmailVerificationToken, token).await
     }
 
     /// /// finds a user by the provided reset token
@@ -107,11 +99,7 @@ impl super::_entities::users::Model {
     ///
     /// When could not find user by the given token or DB query error
     pub async fn find_by_reset_token(db: &DatabaseConnection, token: &str) -> ModelResult<Self> {
-        let user = users::Entity::find()
-            .filter(users::Column::ResetToken.eq(token))
-            .one(db)
-            .await?;
-        user.ok_or_else(|| ModelError::EntityNotFound)
+        Self::find_by_column(db, users::Column::ResetToken, token).await
     }
 
     /// finds a user by the provided pid
@@ -121,11 +109,7 @@ impl super::_entities::users::Model {
     /// When could not find user  or DB query error
     pub async fn find_by_pid(db: &DatabaseConnection, pid: &str) -> ModelResult<Self> {
         let parse_uuid = Uuid::parse_str(pid).map_err(|e| ModelError::Any(e.into()))?;
-        let user = users::Entity::find()
-            .filter(users::Column::Pid.eq(parse_uuid))
-            .one(db)
-            .await?;
-        user.ok_or_else(|| ModelError::EntityNotFound)
+        Self::find_by_column(db, users::Column::Pid, parse_uuid).await
     }
 
     /// finds a user by the provided api key
@@ -134,11 +118,7 @@ impl super::_entities::users::Model {
     ///
     /// When could not find user by the given token or DB query error
     pub async fn find_by_api_key(db: &DatabaseConnection, api_key: &str) -> ModelResult<Self> {
-        let user = users::Entity::find()
-            .filter(users::Column::ApiKey.eq(api_key))
-            .one(db)
-            .await?;
-        user.ok_or_else(|| ModelError::EntityNotFound)
+        Self::find_by_column(db, users::Column::ApiKey, api_key).await
     }
 
     /// finds a user by the provided username
@@ -147,8 +127,16 @@ impl super::_entities::users::Model {
     ///
     /// When could not find user by the given username or DB query error
     pub async fn find_by_username(db: &DatabaseConnection, username: &str) -> ModelResult<Self> {
+        Self::find_by_column(db, users::Column::Name, username).await
+    }
+
+    async fn find_by_column(
+        db: &DatabaseConnection,
+        column: impl sea_orm::ColumnTrait,
+        value: impl Into<sea_orm::Value>,
+    ) -> ModelResult<Self> {
         let user = users::Entity::find()
-            .filter(users::Column::Name.eq(username))
+            .filter(column.eq(value))
             .one(db)
             .await?;
         user.ok_or_else(|| ModelError::EntityNotFound)
