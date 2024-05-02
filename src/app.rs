@@ -16,7 +16,7 @@ use sea_orm::DatabaseConnection;
 
 use crate::{
     controllers,
-    models::_entities::{notes, users},
+    models::_entities::{courses, notes, users},
     tasks,
     workers::downloader::DownloadWorker,
 };
@@ -60,14 +60,15 @@ impl Hooks for App {
     }
 
     async fn truncate(db: &DatabaseConnection) -> Result<()> {
+        truncate_table(db, courses::Entity).await?;
         truncate_table(db, users::Entity).await?;
-        truncate_table(db, notes::Entity).await?;
         Ok(())
     }
 
     async fn seed(db: &DatabaseConnection, base: &Path) -> Result<()> {
         db::seed::<users::ActiveModel>(db, &base.join("users.yaml").display().to_string()).await?;
-        db::seed::<notes::ActiveModel>(db, &base.join("notes.yaml").display().to_string()).await?;
+        db::seed::<courses::ActiveModel>(db, &base.join("courses.yaml").display().to_string())
+            .await?;
         Ok(())
     }
 }

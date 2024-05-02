@@ -15,6 +15,11 @@ expression: "response.json::<serde_json::Value>()"
       "username": "first_admin"
     },
     {
+      "displayed_name": "teacher1",
+      "role": 2,
+      "username": "teacher1"
+    },
+    {
       "displayed_name": "user1",
       "role": 1,
       "username": "user1"
