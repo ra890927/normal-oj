@@ -4,14 +4,9 @@ use normal_oj::{app::App, models::_entities::notes::Entity};
 use sea_orm::entity::prelude::*;
 use serial_test::serial;
 
-// TODO: see how to dedup / extract this to app-local test utils
-// not to framework, because that would require a runtime dep on insta
 macro_rules! configure_insta {
-    ($($expr:expr),*) => {
-        let mut settings = insta::Settings::clone_current();
-        settings.set_prepend_module_to_snapshot(false);
-        settings.set_snapshot_suffix("notes_request");
-        let _guard = settings.bind_to_scope();
+    () => {
+        crate::configure_insta!("notes_request");
     };
 }
 

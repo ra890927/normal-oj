@@ -9,11 +9,8 @@ use sea_orm::{ActiveModelTrait, ActiveValue, IntoActiveModel};
 use serial_test::serial;
 
 macro_rules! configure_insta {
-    ($($expr:expr),*) => {
-        let mut settings = insta::Settings::clone_current();
-        settings.set_prepend_module_to_snapshot(false);
-        settings.set_snapshot_suffix("users");
-        let _guard = settings.bind_to_scope();
+    () => {
+        crate::configure_insta!("users")
     };
 }
 
