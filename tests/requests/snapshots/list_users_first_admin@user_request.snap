@@ -1,0 +1,28 @@
+---
+source: tests/requests/user.rs
+expression: "response.json::<serde_json::Value>()"
+---
+{
+  "pagination": {
+    "page": 1,
+    "page_size": 10,
+    "total_pages": 1
+  },
+  "results": [
+    {
+      "displayed_name": "first_admin",
+      "role": 0,
+      "username": "first_admin"
+    },
+    {
+      "displayed_name": "user1",
+      "role": 1,
+      "username": "user1"
+    },
+    {
+      "displayed_name": "user2",
+      "role": 1,
+      "username": "user2"
+    }
+  ]
+}

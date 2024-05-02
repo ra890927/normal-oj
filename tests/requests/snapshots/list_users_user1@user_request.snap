@@ -1,0 +1,7 @@
+---
+source: tests/requests/user.rs
+expression: "response.json::<serde_json::Value>()"
+---
+{
+  "msg": "Insufficient Permissions"
+}
