@@ -3,6 +3,6 @@ source: tests/requests/user.rs
 expression: "(response.status_code(), response.text())"
 ---
 (
-    200,
-    "{\"pid\":\"PID\",\"name\":\"loco\",\"email\":\"test@loco.com\"}",
+    403,
+    "{\"msg\":\"Insufficient Permissions\"}",
 )

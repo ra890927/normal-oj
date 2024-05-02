@@ -1,0 +1,18 @@
+---
+source: tests/requests/user.rs
+expression: response
+---
+{
+  "results": [
+    {
+      "username": "first_admin",
+      "displayed_name": "first_admin",
+      "role": 0
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 10,
+    "total_pages": 1
+  }
+}
