@@ -12,7 +12,7 @@ use loco_rs::{
     Result,
 };
 use migration::Migrator;
-use sea_orm::DatabaseConnection;
+use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 
 use crate::{
     controllers,
@@ -69,6 +69,20 @@ impl Hooks for App {
         db::seed::<users::ActiveModel>(db, &base.join("users.yaml").display().to_string()).await?;
         db::seed::<courses::ActiveModel>(db, &base.join("courses.yaml").display().to_string())
             .await?;
+
+        // update auto inc id
+        // ref: https://stackoverflow.com/a/55024610
+        db.execute(Statement::from_string(
+            DatabaseBackend::Postgres,
+            "SELECT SETVAL('users_id_seq', (SELECT max(id) FROM users))",
+        ))
+        .await?;
+        db.execute(Statement::from_string(
+            DatabaseBackend::Postgres,
+            "SELECT SETVAL('courses_id_seq', (SELECT max(id) FROM courses))",
+        ))
+        .await?;
+
         Ok(())
     }
 }
