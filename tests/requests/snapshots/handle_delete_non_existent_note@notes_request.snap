@@ -1,0 +1,8 @@
+---
+source: tests/requests/notes.rs
+expression: "(delete_non_existent_note_request.status_code(),\n    delete_non_existent_note_request.text())"
+---
+(
+    404,
+    "{\"error\":\"not_found\",\"description\":\"Resource was not found\"}",
+)

@@ -121,3 +121,32 @@ async fn can_delete_note() {
     })
     .await;
 }
+
+#[tokio::test]
+#[serial]
+async fn handle_delete_non_existent_note() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+
+        let count_before_delete = Entity::find().all(&ctx.db).await.unwrap().len();
+        let delete_non_existent_note_request = request.delete("/api/notes/999").await;
+
+        with_settings!({
+            filters => {
+                 let mut combined_filters = testing::CLEANUP_DATE.to_vec();
+                    combined_filters.extend(vec![(r#"\"id\\":\d+"#, r#""id\":ID"#)]);
+                    combined_filters
+            }
+        }, {
+            assert_debug_snapshot!(
+            (delete_non_existent_note_request.status_code(), delete_non_existent_note_request.text())
+        );
+        });
+
+        let count_after_delete = Entity::find().all(&ctx.db).await.unwrap().len();
+        assert_eq!(count_after_delete, count_before_delete);
+    })
+    .await;
+}
