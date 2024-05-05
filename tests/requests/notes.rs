@@ -76,7 +76,10 @@ async fn can_get_note() {
     testing::request::<App, _, _>(|request, ctx| async move {
         testing::seed::<App>(&ctx.db).await.unwrap();
 
-        let add_note_request = request.get("/api/notes/1").await;
+        let notes_count = Entity::find().all(&ctx.db).await.unwrap().len();
+
+        let get_note_request = request.get("/api/notes/1").await;
+        let get_non_existent_note_request = request.get("/api/notes/999").await;
 
         with_settings!({
             filters => {
@@ -85,10 +88,20 @@ async fn can_get_note() {
                     combined_filters
             }
         }, {
+
+
             assert_debug_snapshot!(
-            (add_note_request.status_code(), add_note_request.text())
-        );
+            (get_note_request.status_code(), get_note_request.text())
+            );
+
+            assert_debug_snapshot!(
+                (get_non_existent_note_request.status_code(), get_non_existent_note_request.text())
+            );
+
         });
+
+        let count_after_get = Entity::find().all(&ctx.db).await.unwrap().len();
+        assert_eq!(notes_count, count_after_get);
     })
     .await;
 }
@@ -102,7 +115,14 @@ async fn can_delete_note() {
         testing::seed::<App>(&ctx.db).await.unwrap();
 
         let count_before_delete = Entity::find().all(&ctx.db).await.unwrap().len();
+
+        let delete_non_existent_note_request = request.delete("/api/notes/999").await;
+        let count_after_delete_non_existent = Entity::find().all(&ctx.db).await.unwrap().len();
+        assert_eq!(count_after_delete_non_existent, count_before_delete);
+
         let delete_note_request = request.delete("/api/notes/1").await;
+        let count_after_delete = Entity::find().all(&ctx.db).await.unwrap().len();
+        assert_eq!(count_after_delete, count_before_delete - 1);
 
         with_settings!({
             filters => {
@@ -111,13 +131,18 @@ async fn can_delete_note() {
                     combined_filters
             }
         }, {
+
             assert_debug_snapshot!(
-            (delete_note_request.status_code(), delete_note_request.text())
-        );
+                (delete_note_request.status_code(), delete_note_request.text())
+            );
+
+            assert_debug_snapshot!(
+                (delete_non_existent_note_request.status_code(), delete_non_existent_note_request.text())
+            );
+
         });
 
-        let count_after_delete = Entity::find().all(&ctx.db).await.unwrap().len();
-        assert_eq!(count_after_delete, count_before_delete - 1);
+
     })
     .await;
 }
