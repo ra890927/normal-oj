@@ -81,15 +81,24 @@ async fn normal_user_cannot_add_user() {
     .await;
 }
 
+#[rstest]
+#[case("new_user@example.com", "new_user", StatusCode::CREATED)] // new user
+#[case("new_user@example.com", "user1", StatusCode::CONFLICT)] // same name
+#[case("user1@example.com", "new_user", StatusCode::CONFLICT)] // same email
+#[case("user1@example.com", "user1", StatusCode::CONFLICT)] // duplicate user
+#[case("first_admin@noj.tw", "first_admin", StatusCode::CONFLICT)] // duplicate admin
 #[tokio::test]
 #[serial]
-async fn admin_can_add_user() {
+async fn admin_can_add_user(
+    #[case] email: &str,
+    #[case] name: &str,
+    #[case] status_code: StatusCode,
+) {
     configure_insta!();
 
     testing::request::<App, _, _>(|request, ctx| async move {
         testing::seed::<App>(&ctx.db).await.unwrap();
 
-        let username = "new_user";
         let password = "password";
 
         let user = users::Model::find_by_username(&ctx.db, "first_admin")
@@ -97,31 +106,39 @@ async fn admin_can_add_user() {
             .unwrap();
         let token = create_token(&user, &ctx).await;
 
-        let create_user_payload = json!({
-            "username": username,
-            "email": "somebody@noj.tw",
+        let create_user_payload: sea_orm::prelude::Json = json!({
+            "username": name,
+            "email": email,
             "password": password,
         });
 
         let (auth_key, auth_value) = prepare_data::auth_header(&token);
-        let response = request
+        let add_uesr_response = request
             .post("/api/user")
             .json(&create_user_payload)
             .add_header(auth_key, auth_value)
             .await;
-        assert_debug_snapshot!((response.status_code(), response.text()));
 
-        let response = request
+        add_uesr_response.assert_status(status_code);
+
+        let try_login_response = request
             .post("/api/auth/login")
             .json(&json!({
-                "username": username,
+                "username": email,
                 "password": password,
             }))
             .await;
+
         with_settings!({
-            filters => testing::cleanup_user_model()
-        }, {
-            assert_debug_snapshot!((response.status_code(), response.text()));
+                filters => testing::cleanup_user_model(),
+            }, {
+                assert_json_snapshot!(
+                    format!("admin_can_add_user_by_{email}_and_{name}"),
+                    try_login_response.json::<serde_json::Value>(),
+                    {
+                        ".results" => insta::sorted_redaction()
+                    },
+                );
         });
     })
     .await;

@@ -1,8 +1,0 @@
----
-source: tests/requests/user.rs
-expression: "(response.status_code(), response.text())"
----
-(
-    201,
-    "",
-)
