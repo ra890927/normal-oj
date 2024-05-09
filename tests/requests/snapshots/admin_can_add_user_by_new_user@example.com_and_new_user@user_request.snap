@@ -1,0 +1,10 @@
+---
+source: tests/requests/user.rs
+expression: "try_login_response.json::<serde_json::Value>()"
+---
+{
+  "is_verified": true,
+  "name": "new_user",
+  "pid": "PID",
+  "token": "TOKEN"
+}

@@ -1,8 +1,0 @@
----
-source: tests/requests/user.rs
-expression: "(response.status_code(), response.text())"
----
-(
-    200,
-    "{\"token\":\"TOKEN\",\"pid\":\"PID\",\"name\":\"new_user\",\"is_verified\":true}",
-)

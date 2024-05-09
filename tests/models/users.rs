@@ -4,6 +4,7 @@ use normal_oj::{
     app::App,
     models::users::{self, Model, RegisterParams},
 };
+use rstest::rstest;
 use sea_orm::{ActiveModelTrait, ActiveValue, IntoActiveModel};
 use serial_test::serial;
 
@@ -208,9 +209,13 @@ async fn can_verified() {
     assert!(user.email_verified_at.is_some());
 }
 
+#[rstest]
+#[case("new-password")]
+#[case("12341234")]
+#[case("")]
 #[tokio::test]
 #[serial]
-async fn can_reset_password() {
+async fn can_reset_password(#[case] new_passward: &str) {
     configure_insta!();
 
     let boot = testing::boot_test::<App>().await.unwrap();
@@ -225,7 +230,7 @@ async fn can_reset_password() {
     assert!(user
         .clone()
         .into_active_model()
-        .reset_password(&boot.app_context.db, "new-password")
+        .reset_password(&boot.app_context.db, new_passward)
         .await
         .is_ok());
 
@@ -233,6 +238,6 @@ async fn can_reset_password() {
         Model::find_by_pid(&boot.app_context.db, "11111111-1111-1111-1111-111111111111")
             .await
             .unwrap()
-            .verify_password("new-password")
+            .verify_password(new_passward)
     );
 }
