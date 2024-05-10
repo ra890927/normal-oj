@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 pub use super::_entities::sea_orm_active_enums::Role;
 pub use super::_entities::users::{self, ActiveModel, Entity, Model};
-use super::courses;
+use super::{courses, is_unique_constraint_violation_err};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LoginParams {
@@ -218,15 +218,6 @@ impl super::_entities::users::Model {
     ) -> ModelResult<Self> {
         let txn = db.begin().await?;
 
-        if users::Entity::find()
-            .filter(users::Column::Email.eq(&params.email))
-            .one(&txn)
-            .await?
-            .is_some()
-        {
-            return Err(ModelError::EntityAlreadyExists {});
-        }
-
         let password_hash =
             hash::hash_password(&params.password).map_err(|e| ModelError::Any(e.into()))?;
         let user = users::ActiveModel {
@@ -236,9 +227,22 @@ impl super::_entities::users::Model {
             ..Default::default()
         }
         .insert(&txn)
-        .await?;
+        .await
+        .map_err(|e| {
+            if is_unique_constraint_violation_err(&e) {
+                ModelError::EntityAlreadyExists {}
+            } else {
+                ModelError::Any(e.into())
+            }
+        })?;
 
-        txn.commit().await?;
+        txn.commit().await.map_err(|e| {
+            if is_unique_constraint_violation_err(&e) {
+                ModelError::EntityAlreadyExists {}
+            } else {
+                ModelError::Any(e.into())
+            }
+        })?;
 
         Ok(user)
     }

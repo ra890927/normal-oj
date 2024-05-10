@@ -138,10 +138,19 @@ async fn reset(State(ctx): State<AppContext>, Json(params): Json<ResetParams>) -
 
 /// Creates a user login and returns a token
 async fn login(State(ctx): State<AppContext>, Json(params): Json<LoginParams>) -> Result<Response> {
-    let user = match users::Model::find_by_email(&ctx.db, &params.username).await {
+    let query_result = match users::Model::find_by_email(&ctx.db, &params.username).await {
         Ok(u) => Ok(u),
         Err(_) => users::Model::find_by_username(&ctx.db, &params.username).await,
-    }?;
+    }
+    .map_err(|e| match e {
+        ModelError::EntityNotFound => unauthorized("unauthorized"),
+        _ => Err(loco_rs::Error::Any(e.into())),
+    });
+
+    let user = match query_result {
+        Ok(u) => u,
+        Err(e) => return e,
+    };
 
     let valid = user.verify_password(&params.password);
 

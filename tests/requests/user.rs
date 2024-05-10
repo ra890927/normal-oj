@@ -108,13 +108,13 @@ async fn admin_can_add_user(
         });
 
         let (auth_key, auth_value) = prepare_data::auth_header(&token);
-        let add_uesr_response = request
+        let add_user_response = request
             .post("/api/user")
             .json(&create_user_payload)
             .add_header(auth_key, auth_value)
             .await;
 
-        add_uesr_response.assert_status(status_code);
+        add_user_response.assert_status(status_code);
 
         let try_login_response = request
             .post("/api/auth/login")
@@ -274,7 +274,6 @@ async fn non_admin_cannot_edit_user() {
             .json(&payload)
             .add_header(auth_key, auth_value)
             .await;
-        println!("{response:?}");
         response.assert_status_forbidden();
     })
     .await;
