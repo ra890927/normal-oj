@@ -2,7 +2,7 @@ use insta::assert_debug_snapshot;
 use loco_rs::{model::ModelError, testing};
 use normal_oj::{
     app::App,
-    models::users::{self, BatchSignupItem, BatchSignupParams, Model, RegisterParams},
+    models::users::{self, BatchSignupItem, BatchSignupParams, EditParams, Model, RegisterParams},
 };
 use rstest::rstest;
 use sea_orm::{ActiveModelTrait, ActiveValue, IntoActiveModel};
@@ -269,4 +269,41 @@ async fn can_batch_signup() {
             .unwrap();
         assert!(user.verify_password(&u.password));
     }
+}
+
+#[tokio::test]
+#[serial]
+async fn can_edit_user() {
+    configure_insta!();
+
+    let boot = testing::boot_test::<App>().await.unwrap();
+    testing::seed::<App>(&boot.app_context.db).await.unwrap();
+
+    let test_password = "test-password";
+    let user = users::Model::create_with_password(
+        &boot.app_context.db,
+        &RegisterParams {
+            email: "test@noj.tw".to_string(),
+            password: "random-password".to_string(),
+            username: "test".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert!(!user.verify_password(test_password));
+
+    let user = user
+        .into_active_model()
+        .edit(
+            &boot.app_context.db,
+            EditParams {
+                password: Some(test_password.to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert!(user.verify_password(test_password));
 }

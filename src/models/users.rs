@@ -38,6 +38,12 @@ pub struct BatchSignupParams {
     pub users: Vec<BatchSignupItem>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct EditParams {
+    pub displayed_name: Option<String>,
+    pub password: Option<String>,
+}
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -372,6 +378,30 @@ impl super::_entities::users::ActiveModel {
     ) -> ModelResult<Model> {
         self.password =
             ActiveValue::set(hash::hash_password(password).map_err(|e| ModelError::Any(e.into()))?);
+        Ok(self.update(db).await?)
+    }
+
+    /// Edit an user's info, generally this shoud only be done by admin.
+    ///
+    /// # Errors
+    ///
+    /// When has DB query error or could not hash the given password.
+    pub async fn edit(
+        mut self,
+        db: &impl ConnectionTrait,
+        params: EditParams,
+    ) -> ModelResult<Model> {
+        let password = params
+            .password
+            .as_ref()
+            .map(|pass| hash::hash_password(pass).map_err(|e| ModelError::Any(e.into())))
+            .transpose()?;
+
+        self.password = password
+            .map(|p| ActiveValue::set(p))
+            .unwrap_or(ActiveValue::not_set());
+        self.displayed_name = ActiveValue::set(params.displayed_name);
+
         Ok(self.update(db).await?)
     }
 }

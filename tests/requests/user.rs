@@ -1,4 +1,4 @@
-use axum::http::{response, StatusCode};
+use axum::http::StatusCode;
 use insta::{assert_debug_snapshot, assert_json_snapshot, with_settings};
 use loco_rs::{app::AppContext, testing};
 use normal_oj::{
@@ -250,6 +250,62 @@ async fn can_batch_signup() {
                 .unwrap();
             assert!(u.verify_password(&format!("user{i}")));
         }
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn non_admin_cannot_edit_user() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+        let user = users::Model::find_by_username(&ctx.db, "user1")
+            .await
+            .unwrap();
+        let test_password = "random-test-password";
+        let payload = json!({
+            "password": test_password,
+        });
+        let (auth_key, auth_value) = prepare_data::auth_header(&create_token(&user, &ctx).await);
+        let response = request
+            .patch("/api/user/user2")
+            .json(&payload)
+            .add_header(auth_key, auth_value)
+            .await;
+        println!("{response:?}");
+        response.assert_status_forbidden();
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn admin_can_edit_user() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+        let user = users::Model::find_by_username(&ctx.db, "first_admin")
+            .await
+            .unwrap();
+        let test_password: &str = "random-test-password";
+        let payload = json!({
+            "password": test_password,
+        });
+        let (auth_key, auth_value) = prepare_data::auth_header(&create_token(&user, &ctx).await);
+        let response = request
+            .patch("/api/user/user2")
+            .json(&payload)
+            .add_header(auth_key, auth_value)
+            .await;
+        response.assert_status_ok();
+
+        let user2 = users::Model::find_by_username(&ctx.db, "user2")
+            .await
+            .unwrap();
+        assert!(user2.verify_password(test_password));
     })
     .await;
 }
