@@ -31,7 +31,7 @@ async fn verify_admin(
             .json(json!({"msg": "Insufficient Permissions"})));
     }
 
-    return Ok(user);
+    Ok(user)
 }
 
 async fn current(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Response> {

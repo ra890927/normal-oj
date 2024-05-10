@@ -401,9 +401,7 @@ impl super::_entities::users::ActiveModel {
             .map(|pass| hash::hash_password(pass).map_err(|e| ModelError::Any(e.into())))
             .transpose()?;
 
-        self.password = password
-            .map(|p| ActiveValue::set(p))
-            .unwrap_or(ActiveValue::not_set());
+        self.password = password.map_or_else(ActiveValue::not_set, ActiveValue::set);
         self.displayed_name = ActiveValue::set(params.displayed_name);
 
         Ok(self.update(db).await?)
