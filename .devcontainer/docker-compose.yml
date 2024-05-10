@@ -40,6 +40,13 @@ services:
       - 1025:1025
     networks:
       - mailer
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    networks:
+      - db
 
 volumes:
   postgres-data:
