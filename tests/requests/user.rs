@@ -140,11 +140,11 @@ async fn admin_can_add_user(
 }
 
 #[rstest]
-#[case("first_admin", 200)]
-#[case("user1", 403)]
+#[case("first_admin", StatusCode::OK)]
+#[case("user1", StatusCode::FORBIDDEN)]
 #[tokio::test]
 #[serial]
-async fn list_users(#[case] username: &str, #[case] status_code: u16) {
+async fn list_users(#[case] username: &str, #[case] status_code: StatusCode) {
     configure_insta!();
 
     testing::request::<App, _, _>(|request, ctx| async move {
@@ -158,7 +158,7 @@ async fn list_users(#[case] username: &str, #[case] status_code: u16) {
             .get("/api/user")
             .add_header(auth_key, auth_value)
             .await;
-        response.assert_status(StatusCode::from_u16(status_code).unwrap());
+        response.assert_status(status_code);
         with_settings!({
             filters => testing::cleanup_user_model(),
         }, {
