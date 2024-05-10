@@ -17,6 +17,7 @@ pub struct Model {
     pub password: String,
     #[sea_orm(unique)]
     pub api_key: String,
+    #[sea_orm(unique)]
     pub name: String,
     pub reset_token: Option<String>,
     pub reset_sent_at: Option<DateTime>,
