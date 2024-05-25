@@ -11,27 +11,12 @@ use crate::{
     views::user::{CurrentResponse, UserInfoResponse},
 };
 
+use super::verify_admin;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListUserParams {
     role: Option<i32>,
     course: Option<String>,
-}
-
-async fn verify_admin(
-    ctx: &AppContext,
-    auth: &auth::JWT,
-) -> Result<users::Model, Result<Response>> {
-    let user = users::Model::find_by_claims_key(&ctx.db, &auth.claims.pid)
-        .await
-        .map_err(|e| Err(e.into()))?;
-
-    if Role::Admin != user.role {
-        return Err(format::render()
-            .status(StatusCode::FORBIDDEN)
-            .json(json!({"msg": "Insufficient Permissions"})));
-    }
-
-    Ok(user)
 }
 
 async fn current(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Response> {
