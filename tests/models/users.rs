@@ -2,18 +2,15 @@ use insta::assert_debug_snapshot;
 use loco_rs::{model::ModelError, testing};
 use normal_oj::{
     app::App,
-    models::users::{self, Model, RegisterParams},
+    models::users::{self, BatchSignupItem, BatchSignupParams, EditParams, Model, RegisterParams},
 };
 use rstest::rstest;
 use sea_orm::{ActiveModelTrait, ActiveValue, IntoActiveModel};
 use serial_test::serial;
 
 macro_rules! configure_insta {
-    ($($expr:expr),*) => {
-        let mut settings = insta::Settings::clone_current();
-        settings.set_prepend_module_to_snapshot(false);
-        settings.set_snapshot_suffix("users");
-        let _guard = settings.bind_to_scope();
+    () => {
+        crate::configure_insta!("users")
     };
 }
 
@@ -240,4 +237,73 @@ async fn can_reset_password(#[case] new_passward: &str) {
             .unwrap()
             .verify_password(new_passward)
     );
+}
+
+#[tokio::test]
+#[serial]
+async fn can_batch_signup() {
+    configure_insta!();
+
+    let boot = testing::boot_test::<App>().await.unwrap();
+    testing::seed::<App>(&boot.app_context.db).await.unwrap();
+
+    let params = BatchSignupParams {
+        course: None,
+        users: (3..6)
+            .map(|i| BatchSignupItem {
+                username: format!("user{i}"),
+                password: format!("user{i}"),
+                email: format!("user{i}@noj.tw"),
+                ..Default::default()
+            })
+            .collect::<Vec<_>>(),
+    };
+
+    users::Model::batch_signup(&boot.app_context.db, &params)
+        .await
+        .unwrap();
+
+    for u in &params.users {
+        let user = users::Model::find_by_username(&boot.app_context.db, &u.username)
+            .await
+            .unwrap();
+        assert!(user.verify_password(&u.password));
+    }
+}
+
+#[tokio::test]
+#[serial]
+async fn can_edit_user() {
+    configure_insta!();
+
+    let boot = testing::boot_test::<App>().await.unwrap();
+    testing::seed::<App>(&boot.app_context.db).await.unwrap();
+
+    let test_password = "test-password";
+    let user = users::Model::create_with_password(
+        &boot.app_context.db,
+        &RegisterParams {
+            email: "test@noj.tw".to_string(),
+            password: "random-password".to_string(),
+            username: "test".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert!(!user.verify_password(test_password));
+
+    let user = user
+        .into_active_model()
+        .edit(
+            &boot.app_context.db,
+            EditParams {
+                password: Some(test_password.to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert!(user.verify_password(test_password));
 }

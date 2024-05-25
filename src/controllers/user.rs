@@ -1,4 +1,4 @@
-use axum::{extract::Query, http::StatusCode};
+use axum::{extract::Query, http::StatusCode, routing::patch};
 use loco_rs::{
     controller::views::pagination::{Pager, PagerMeta},
     prelude::*,
@@ -17,6 +17,23 @@ pub struct ListUserParams {
     course: Option<String>,
 }
 
+async fn verify_admin(
+    ctx: &AppContext,
+    auth: &auth::JWT,
+) -> Result<users::Model, Result<Response>> {
+    let user = users::Model::find_by_claims_key(&ctx.db, &auth.claims.pid)
+        .await
+        .map_err(|e| Err(e.into()))?;
+
+    if Role::Admin != user.role {
+        return Err(format::render()
+            .status(StatusCode::FORBIDDEN)
+            .json(json!({"msg": "Insufficient Permissions"})));
+    }
+
+    Ok(user)
+}
+
 async fn current(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
     format::json(CurrentResponse::new(&user))
@@ -27,13 +44,10 @@ async fn create(
     State(ctx): State<AppContext>,
     Json(params): Json<RegisterParams>,
 ) -> Result<Response> {
-    let user = users::Model::find_by_claims_key(&ctx.db, &auth.claims.pid).await?;
-
-    if Role::Admin != user.role {
-        return format::render()
-            .status(StatusCode::FORBIDDEN)
-            .json(json!({"msg": "Insufficient Permissions"}));
-    }
+    let _user = match verify_admin(&ctx, &auth).await {
+        Ok(u) => u,
+        Err(e) => return e,
+    };
 
     let new_user = match users::Model::create_with_password(&ctx.db, &params).await {
         Ok(u) => u,
@@ -70,13 +84,10 @@ async fn list_user(
     Query(params): Query<ListUserParams>,
     Query(page_params): Query<model::query::PaginationQuery>,
 ) -> Result<Response> {
-    let user = users::Model::find_by_claims_key(&ctx.db, &auth.claims.pid).await?;
-
-    if Role::Admin != user.role {
-        return format::render()
-            .status(StatusCode::FORBIDDEN)
-            .json(json!({"msg": "Insufficient Permissions"}));
-    }
+    let _user = match verify_admin(&ctx, &auth).await {
+        Ok(u) => u,
+        Err(e) => return e,
+    };
 
     let role = match params.role {
         Some(0) => Some(Role::Admin),
@@ -114,10 +125,36 @@ async fn list_user(
     format::json(resp)
 }
 
+async fn edit_user(
+    State(ctx): State<AppContext>,
+    auth: auth::JWT,
+    Path(username): Path<String>,
+    Json(params): Json<users::EditParams>,
+) -> Result<Response> {
+    let user = match verify_admin(&ctx, &auth).await {
+        Ok(u) => u,
+        Err(e) => return e,
+    };
+
+    let user_to_edit = users::Model::find_by_username(&ctx.db, &username)
+        .await?
+        .into_active_model()
+        .edit(&ctx.db, params)
+        .await?;
+    tracing::info!(
+        admin = user.name,
+        user = user_to_edit.name,
+        "user is edited by admin"
+    );
+
+    format::json("")
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("user")
         .add("/current", get(current))
         .add("", post(create))
         .add("", get(list_user))
+        .add("/:username", patch(edit_user))
 }

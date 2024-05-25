@@ -12,14 +12,9 @@ use serial_test::serial;
 
 use super::prepare_data;
 
-// TODO: see how to dedup / extract this to app-local test utils
-// not to framework, because that would require a runtime dep on insta
 macro_rules! configure_insta {
-    ($($expr:expr),*) => {
-        let mut settings = insta::Settings::clone_current();
-        settings.set_prepend_module_to_snapshot(false);
-        settings.set_snapshot_suffix("user_request");
-        let _guard = settings.bind_to_scope();
+    () => {
+        crate::configure_insta!("user_request");
     };
 }
 
@@ -113,13 +108,13 @@ async fn admin_can_add_user(
         });
 
         let (auth_key, auth_value) = prepare_data::auth_header(&token);
-        let add_uesr_response = request
+        let add_user_response = request
             .post("/api/user")
             .json(&create_user_payload)
             .add_header(auth_key, auth_value)
             .await;
 
-        add_uesr_response.assert_status(status_code);
+        add_user_response.assert_status(status_code);
 
         let try_login_response = request
             .post("/api/auth/login")
@@ -145,11 +140,11 @@ async fn admin_can_add_user(
 }
 
 #[rstest]
-#[case("first_admin", 200)]
-#[case("user1", 403)]
+#[case("first_admin", StatusCode::OK)]
+#[case("user1", StatusCode::FORBIDDEN)]
 #[tokio::test]
 #[serial]
-async fn list_users(#[case] username: &str, #[case] status_code: u16) {
+async fn list_users(#[case] username: &str, #[case] status_code: StatusCode) {
     configure_insta!();
 
     testing::request::<App, _, _>(|request, ctx| async move {
@@ -163,7 +158,7 @@ async fn list_users(#[case] username: &str, #[case] status_code: u16) {
             .get("/api/user")
             .add_header(auth_key, auth_value)
             .await;
-        response.assert_status(StatusCode::from_u16(status_code).unwrap());
+        response.assert_status(status_code);
         with_settings!({
             filters => testing::cleanup_user_model(),
         }, {
@@ -209,6 +204,107 @@ async fn can_filter_user_by_role() {
         }, {
             assert_json_snapshot!(response);
         });
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn can_batch_signup() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+        let payload = vec!["username,email,password".to_string()]
+            .into_iter()
+            .chain((3..6).map(|i| format!("user{i},user{i}@noj.tw,user{i}")))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let payload = json!({"new_users": payload});
+
+        let user = users::Model::find_by_username(&ctx.db, "user1")
+            .await
+            .unwrap();
+        let (auth_key, auth_value) = prepare_data::auth_header(&create_token(&user, &ctx).await);
+        let response = request
+            .post("/api/auth/batch-signup")
+            .json(&payload)
+            .add_header(auth_key, auth_value)
+            .await;
+        response.assert_status_forbidden();
+
+        let user = users::Model::find_by_username(&ctx.db, "first_admin")
+            .await
+            .unwrap();
+        let (auth_key, auth_value) = prepare_data::auth_header(&create_token(&user, &ctx).await);
+        let response = request
+            .post("/api/auth/batch-signup")
+            .add_header(auth_key, auth_value)
+            .json(&payload)
+            .await;
+        response.assert_status_success();
+
+        for i in 3..6 {
+            let u = users::Model::find_by_username(&ctx.db, &format!("user{i}"))
+                .await
+                .unwrap();
+            assert!(u.verify_password(&format!("user{i}")));
+        }
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn non_admin_cannot_edit_user() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+        let user = users::Model::find_by_username(&ctx.db, "user1")
+            .await
+            .unwrap();
+        let test_password = "random-test-password";
+        let payload = json!({
+            "password": test_password,
+        });
+        let (auth_key, auth_value) = prepare_data::auth_header(&create_token(&user, &ctx).await);
+        let response = request
+            .patch("/api/user/user2")
+            .json(&payload)
+            .add_header(auth_key, auth_value)
+            .await;
+        response.assert_status_forbidden();
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn admin_can_edit_user() {
+    configure_insta!();
+
+    testing::request::<App, _, _>(|request, ctx| async move {
+        testing::seed::<App>(&ctx.db).await.unwrap();
+        let user = users::Model::find_by_username(&ctx.db, "first_admin")
+            .await
+            .unwrap();
+        let test_password: &str = "random-test-password";
+        let payload = json!({
+            "password": test_password,
+        });
+        let (auth_key, auth_value) = prepare_data::auth_header(&create_token(&user, &ctx).await);
+        let response = request
+            .patch("/api/user/user2")
+            .json(&payload)
+            .add_header(auth_key, auth_value)
+            .await;
+        response.assert_status_ok();
+
+        let user2 = users::Model::find_by_username(&ctx.db, "user2")
+            .await
+            .unwrap();
+        assert!(user2.verify_password(test_password));
     })
     .await;
 }

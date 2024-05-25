@@ -6,8 +6,8 @@ use serde_json::json;
 use crate::{
     mailers::auth::AuthMailer,
     models::{
-        _entities::users,
-        users::{LoginParams, RegisterParams},
+        _entities::courses,
+        users::{self, LoginParams, RegisterParams, Role},
     },
     views::auth::LoginResponse,
 };
@@ -38,6 +38,13 @@ pub struct ChangePasswordParams {
 pub struct CheckItemParams {
     pub username: Option<String>,
     pub email: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BatchSignupParams {
+    new_users: String,
+    course: Option<String>,
+    force: Option<bool>,
 }
 
 /// Register function creates a new user with the given parameters and sends a
@@ -131,10 +138,19 @@ async fn reset(State(ctx): State<AppContext>, Json(params): Json<ResetParams>) -
 
 /// Creates a user login and returns a token
 async fn login(State(ctx): State<AppContext>, Json(params): Json<LoginParams>) -> Result<Response> {
-    let user = match users::Model::find_by_email(&ctx.db, &params.username).await {
+    let query_result = match users::Model::find_by_email(&ctx.db, &params.username).await {
         Ok(u) => Ok(u),
         Err(_) => users::Model::find_by_username(&ctx.db, &params.username).await,
-    }?;
+    }
+    .map_err(|e| match e {
+        ModelError::EntityNotFound => unauthorized("unauthorized"),
+        _ => Err(loco_rs::Error::Any(e.into())),
+    });
+
+    let user = match query_result {
+        Ok(u) => u,
+        Err(e) => return e,
+    };
 
     let valid = user.verify_password(&params.password);
 
@@ -215,6 +231,41 @@ async fn check(
     }
 }
 
+async fn batch_signup(
+    State(ctx): State<AppContext>,
+    auth: auth::JWT,
+    Json(params): Json<BatchSignupParams>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+    if Role::Admin != user.role {
+        return format::render()
+            .status(StatusCode::FORBIDDEN)
+            .json(json!({"msg": "Insufficient Permissions"}));
+    }
+
+    let new_users = csv::Reader::from_reader(params.new_users.as_bytes())
+        .deserialize()
+        .map(|row| row.map_err(|e| loco_rs::Error::Any(Box::new(e))))
+        .collect::<Result<Vec<users::BatchSignupItem>>>()
+        .map_err(|_| {
+            // TODO: this should be 422: Unprocessable Content?
+            loco_rs::Error::BadRequest("Error parse csv file".to_string())
+        })?;
+    let course = match params.course {
+        Some(c) => Some(courses::Model::find_by_name(&ctx.db, &c).await?),
+        None => None,
+    };
+
+    let params = users::BatchSignupParams {
+        course,
+        users: new_users,
+    };
+
+    let new_users = users::Model::batch_signup(&ctx.db, &params).await?;
+    tracing::info!(count = new_users.len(), "new users created");
+    format::render().status(StatusCode::CREATED).empty()
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("auth")
@@ -225,4 +276,5 @@ pub fn routes() -> Routes {
         .add("/reset", post(reset))
         .add("/change-password", post(change_password))
         .add("/check/:item", post(check))
+        .add("/batch-signup", post(batch_signup))
 }
