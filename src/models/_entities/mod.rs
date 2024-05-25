@@ -4,5 +4,7 @@ pub mod prelude;
 
 pub mod courses;
 pub mod notes;
+pub mod problem_descriptions;
+pub mod problems;
 pub mod sea_orm_active_enums;
 pub mod users;
