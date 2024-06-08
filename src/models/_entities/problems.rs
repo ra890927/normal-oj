@@ -18,8 +18,7 @@ pub struct Model {
     pub description_id: i32,
     pub allowed_language: i32,
     pub quota: i32,
-    #[sea_orm(unique)]
-    pub test_case_id: String,
+    pub test_case_id: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

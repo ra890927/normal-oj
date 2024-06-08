@@ -1,13 +1,13 @@
 pub mod descriptions;
 pub mod test_case;
 
+use super::_entities::{self, prelude::Problems, problems};
 use crate::models::transform_db_error;
-
-use super::_entities;
 
 pub use _entities::problems::{ActiveModel, Model};
 use loco_rs::model::{ModelError, ModelResult};
-use sea_orm::{entity::prelude::*, ActiveValue, TransactionTrait};
+use num_derive::FromPrimitive;
+use sea_orm::{entity::prelude::*, ActiveValue, Order, QueryOrder, TransactionTrait};
 use serde::Deserialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -18,14 +18,14 @@ pub enum Error {
     PermissionDenied,
 }
 
-#[derive(Clone, Copy, Debug, Serialize_repr, Deserialize_repr, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize_repr, Deserialize_repr, PartialEq, Eq, FromPrimitive)]
 #[repr(i8)]
 pub enum Visibility {
     Show = 0,
     Hidden = 1,
 }
 
-#[derive(Clone, Copy, Debug, Serialize_repr, Deserialize_repr)]
+#[derive(Clone, Copy, Debug, Serialize_repr, Deserialize_repr, PartialEq, Eq, FromPrimitive)]
 #[repr(i8)]
 pub enum Type {
     Normal = 0,
@@ -52,6 +52,16 @@ pub struct AddParams {
     pub quota: Option<i32>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ListParams {
+    pub viewer: _entities::users::Model,
+    pub offset: Option<usize>,
+    pub count: Option<usize>,
+    pub name: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub course: Option<String>,
+}
+
 impl _entities::problems::Model {
     /// Create a problem without test case binary
     ///
@@ -71,7 +81,7 @@ impl _entities::problems::Model {
             return Err(ModelError::Any(Error::PermissionDenied.into()));
         }
 
-        let description = descriptions::Model::add(db, &params.description).await?;
+        let description = descriptions::Model::add(&txn, &params.description).await?;
 
         let problem = ActiveModel {
             name: ActiveValue::set(params.name.to_string()),
@@ -93,7 +103,47 @@ impl _entities::problems::Model {
         .await
         .map_err(transform_db_error)?;
 
+        txn.commit().await.map_err(transform_db_error)?;
+
         Ok(problem)
+    }
+
+    /// List problems
+    ///
+    /// # Errors
+    ///
+    /// When cloud not query problems from DB
+    pub async fn list<C: ConnectionTrait>(db: &C, params: &ListParams) -> ModelResult<Vec<Self>> {
+        // TODO: check course && tags
+
+        let mut q = Problems::find().order_by(problems::Column::Id, Order::Asc);
+
+        if let Some(name) = &params.name {
+            q = q.filter(problems::Column::Name.eq(name));
+        }
+
+        let problems = q.all(db).await?.into_iter();
+        // TODO: permission check
+
+        let offset = params.offset.unwrap_or(0);
+        let count = params.count.unwrap_or(usize::MAX);
+        let problems = problems.skip(offset).take(count);
+
+        Ok(problems.collect())
+    }
+
+    /// Find a problem by its primary id
+    ///
+    /// # Errors
+    ///
+    /// - When cloud not query problem from DB
+    /// - When the problem with id does not exist
+    pub async fn find_by_id<C: ConnectionTrait>(db: &C, id: i32) -> ModelResult<Self> {
+        let p = Problems::find()
+            .filter(problems::Column::Id.eq(id))
+            .one(db)
+            .await?;
+        p.ok_or(ModelError::EntityNotFound)
     }
 }
 

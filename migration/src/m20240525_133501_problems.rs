@@ -1,4 +1,3 @@
-use loco_rs::schema::string_uniq;
 use sea_orm_migration::{prelude::*, schema::*};
 
 #[derive(DeriveMigrationName)]
@@ -47,7 +46,7 @@ impl MigrationTrait for Migration {
                     // allow all by default
                     .col(integer(Problems::AllowedLanguage).default(7))
                     .col(integer(Problems::Quota).default(-1))
-                    .col(string_uniq(Problems::TestCaseId))
+                    .col(string_null(Problems::TestCaseId))
                     .to_owned(),
             )
             .await

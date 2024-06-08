@@ -1,0 +1,30 @@
+---
+source: tests/requests/problems.rs
+expression: "response.json::<serde_json::Value>()"
+---
+Object {
+    "data": Object {
+        "allowed_language": Number(7),
+        "courses": Array [],
+        "description": Object {
+            "created_at": String("DATE"),
+            "description": String(""),
+            "hint": String(""),
+            "id": Number(2),
+            "input": String(""),
+            "output": String(""),
+            "sample_input": Array [],
+            "sample_output": Array [],
+            "updated_at": String("DATE"),
+        },
+        "high_score": Number(0),
+        "owner": String("first_admin"),
+        "problem_name": String("test-course"),
+        "quota": Number(-1),
+        "status": Number(0),
+        "submit_count": Number(0),
+        "tags": Array [],
+        "type": Number(0),
+    },
+    "message": String(""),
+}
