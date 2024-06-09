@@ -59,8 +59,7 @@ pub struct ProblemDetailResponse {
     quota: i32,
     status: Visibility,
     r#type: Type,
-    // TODO: test case meta
-    // test_case: ???
+    test_case: Vec<problems::tasks::Model>,
     submit_count: i32,
     high_score: i32,
 }
@@ -70,6 +69,7 @@ impl ProblemDetailResponse {
         problem: &problems::Model,
         description: &problems::descriptions::Model,
         owner: &users::Model,
+        tasks: &[problems::tasks::Model],
     ) -> NojResponseBuilder<Self> {
         let resp = Self {
             problem_name: problem.name.clone(),
@@ -81,6 +81,7 @@ impl ProblemDetailResponse {
             quota: problem.quota,
             status: Visibility::from_i32(problem.status).unwrap(),
             r#type: Type::from_i32(problem.r#type).unwrap(),
+            test_case: tasks.iter().cloned().collect(),
             submit_count: 0,
             high_score: 0,
         };

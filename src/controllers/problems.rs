@@ -108,8 +108,9 @@ async fn get_problem(
         .await
         .map_err(|err| transform_db_error(err))?
         .ok_or(ModelError::EntityNotFound)?;
+    let tasks = prob.tasks(&ctx.db).await?;
 
-    format::json(ProblemDetailResponse::new(&prob, &desc, &owner).done())
+    format::json(ProblemDetailResponse::new(&prob, &desc, &owner, &tasks).done())
 }
 
 async fn upload_test_case(

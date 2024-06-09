@@ -24,6 +24,16 @@ Object {
         "status": Number(0),
         "submit_count": Number(0),
         "tags": Array [],
+        "test_case": Array [
+            Object {
+                "id": Number(2),
+                "memory_limit": Number(65535),
+                "problem_id": Number(2),
+                "score": Number(100),
+                "test_case_count": Number(2),
+                "time_limit": Number(1000),
+            },
+        ],
         "type": Number(0),
     },
     "message": String(""),
