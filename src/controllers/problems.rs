@@ -6,7 +6,7 @@ use crate::{
     },
     views::problems::{ProblemDetailResponse, ProblemListResponse},
 };
-use axum::extract::{Multipart, Query};
+use axum::extract::{DefaultBodyLimit, Multipart, Query};
 use loco_rs::{controller::format::render, prelude::*};
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -147,8 +147,8 @@ async fn upload_test_case(
         })?;
     };
 
-    // TODO: validation test case content
     prob.validate_test_case(&ctx.db, &file_content).await?;
+    tracing::info!(problem_id = prob.id, "test case validated");
 
     let test_case_id = uuid::Uuid::new_v4();
     let file_name = format!("{test_case_id}.zip");
@@ -157,6 +157,7 @@ async fn upload_test_case(
         .as_ref()
         .upload(path.as_path(), &file_content)
         .await?;
+    tracing::info!(test_case_id = ?test_case_id, "test case uploaded");
 
     prob.into_active_model()
         .update_test_case_id(&ctx.db, Some(test_case_id.to_string()))
@@ -174,5 +175,9 @@ pub fn routes() -> Routes {
         .add("/:problem_id", get(get_problem))
         .add("/view/:problem_id", get(get_problem))
         .add("/manage/:problem_id", put(upload_test_case))
-        .add("/:problem_id", put(upload_test_case))
+        .add(
+            "/:problem_id",
+            // change body limit to 128 MB
+            put(upload_test_case).layer(DefaultBodyLimit::max(128 * 1024 * 1024)),
+        )
 }

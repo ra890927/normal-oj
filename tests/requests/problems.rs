@@ -135,7 +135,9 @@ async fn admin_can_create_problem_and_test_case() {
         .await
         .unwrap();
         let test_case_content = make_test_case(&ctx.db, &problem).await.unwrap();
-        let test_case = Part::bytes(test_case_content.clone()).file_name("test-case.zip");
+        let test_case = Part::bytes(test_case_content.clone())
+            .file_name("test-case.zip")
+            .mime_type("application/x-zip");
         let form = MultipartForm::new().add_part("case", test_case);
         let response = request
             .put(&format!("/api/problems/{}", problem.id))

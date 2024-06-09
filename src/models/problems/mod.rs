@@ -160,7 +160,8 @@ impl _entities::problems::Model {
         let p = Problems::find()
             .filter(problems::Column::Id.eq(id))
             .one(db)
-            .await?;
+            .await
+            .map_err(transform_db_error)?;
         p.ok_or(ModelError::EntityNotFound)
     }
 
