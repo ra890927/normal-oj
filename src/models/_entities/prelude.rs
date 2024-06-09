@@ -2,4 +2,5 @@
 
 pub use super::courses::Entity as Courses;
 pub use super::notes::Entity as Notes;
+pub use super::submissions::Entity as Submissions;
 pub use super::users::Entity as Users;
