@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use insta::{assert_debug_snapshot, assert_json_snapshot, with_settings};
-use loco_rs::{app::AppContext, testing};
+use loco_rs::testing;
 use normal_oj::{
     app::App,
     models::users::{self, Role},
@@ -10,18 +10,12 @@ use rstest::rstest;
 use serde_json::json;
 use serial_test::serial;
 
-use super::prepare_data;
+use super::{create_token, prepare_data};
 
 macro_rules! configure_insta {
     () => {
         crate::configure_insta!("user_request");
     };
-}
-
-async fn create_token(user: &users::Model, ctx: &AppContext) -> String {
-    let jwt_secret = ctx.config.get_jwt_config().unwrap();
-    user.generate_jwt(&jwt_secret.secret, &jwt_secret.expiration)
-        .unwrap()
 }
 
 #[tokio::test]

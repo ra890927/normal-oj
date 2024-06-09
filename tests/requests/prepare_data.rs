@@ -12,6 +12,7 @@ pub struct LoggedInUser {
     pub password_plaintext: String,
 }
 
+/// Register an user and verify it.
 pub async fn init_user_login(request: &TestServer, ctx: &AppContext) -> LoggedInUser {
     let register_payload = serde_json::json!({
         "username": "loco",

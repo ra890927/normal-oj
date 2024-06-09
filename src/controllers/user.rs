@@ -11,27 +11,12 @@ use crate::{
     views::user::{CurrentResponse, UserInfoResponse},
 };
 
+use super::verify_admin;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListUserParams {
     role: Option<i32>,
     course: Option<String>,
-}
-
-async fn verify_admin(
-    ctx: &AppContext,
-    auth: &auth::JWT,
-) -> Result<users::Model, Result<Response>> {
-    let user = users::Model::find_by_claims_key(&ctx.db, &auth.claims.pid)
-        .await
-        .map_err(|e| Err(e.into()))?;
-
-    if Role::Admin != user.role {
-        return Err(format::render()
-            .status(StatusCode::FORBIDDEN)
-            .json(json!({"msg": "Insufficient Permissions"})));
-    }
-
-    Ok(user)
 }
 
 async fn current(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Response> {
@@ -102,23 +87,22 @@ async fn list_user(
     };
 
     let condition = role.map(|r| {
-        model::query::dsl::condition()
+        model::query::condition()
             .eq(users::users::Column::Role, r)
             .build()
     });
     let user_list =
-        model::query::exec::paginate(&ctx.db, users::Entity::find(), condition, &page_params)
-            .await?;
+        model::query::paginate(&ctx.db, users::Entity::find(), condition, &page_params).await?;
     let resp = Pager::new(
         user_list
-            .rows
+            .page
             .iter()
             .map(UserInfoResponse::new)
             .collect::<Vec<_>>(),
         PagerMeta {
-            page: user_list.info.page,
-            page_size: user_list.info.page_size,
-            total_pages: user_list.info.total_pages,
+            page: page_params.page,
+            page_size: page_params.page_size,
+            total_pages: user_list.total_pages,
         },
     );
 
