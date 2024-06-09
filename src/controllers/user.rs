@@ -87,23 +87,22 @@ async fn list_user(
     };
 
     let condition = role.map(|r| {
-        model::query::dsl::condition()
+        model::query::condition()
             .eq(users::users::Column::Role, r)
             .build()
     });
     let user_list =
-        model::query::exec::paginate(&ctx.db, users::Entity::find(), condition, &page_params)
-            .await?;
+        model::query::paginate(&ctx.db, users::Entity::find(), condition, &page_params).await?;
     let resp = Pager::new(
         user_list
-            .rows
+            .page
             .iter()
             .map(UserInfoResponse::new)
             .collect::<Vec<_>>(),
         PagerMeta {
-            page: user_list.info.page,
-            page_size: user_list.info.page_size,
-            total_pages: user_list.info.total_pages,
+            page: page_params.page,
+            page_size: page_params.page_size,
+            total_pages: user_list.total_pages,
         },
     );
 

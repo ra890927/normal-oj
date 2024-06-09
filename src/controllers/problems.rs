@@ -6,11 +6,12 @@ use crate::{
     },
     views::problems::{ProblemDetailResponse, ProblemListResponse},
 };
-use axum::extract::Query;
+use axum::extract::{Multipart, Query};
 use loco_rs::{controller::format::render, prelude::*};
 use serde::Deserialize;
+use std::path::PathBuf;
 
-use super::verify_admin;
+use super::{find_user_by_auth, permission_denied, verify_admin};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateProblemRequest {
@@ -109,6 +110,53 @@ async fn get_problem(
     format::json(ProblemDetailResponse::new(&prob, &desc, &owner).done())
 }
 
+async fn upload_test_case(
+    State(ctx): State<AppContext>,
+    auth: auth::JWT,
+    Path(problem_id): Path<i32>,
+    mut multipart: Multipart,
+) -> Result<Response> {
+    let user = match find_user_by_auth(&ctx, &auth).await {
+        Ok(u) => u,
+        Err(e) => return e,
+    };
+    let prob = problems::Model::find_by_id(&ctx.db, problem_id).await?;
+    if user.id != prob.owner_id {
+        return permission_denied();
+    }
+
+    let file_content = loop {
+        let Some(field) = multipart.next_field().await.map_err(|err| {
+            tracing::error!(error = ?err,"could not read multipart");
+            Error::BadRequest("could not read multipart".into())
+        })?
+        else {
+            return Err(Error::BadRequest("cloud not find test case file".into()));
+        };
+
+        break field.bytes().await.map_err(|err| {
+            tracing::error!(error = ?err,"could not read bytes");
+            Error::BadRequest("could not read bytes".into())
+        })?;
+    };
+
+    // TODO: validation test case content
+
+    let test_case_id = uuid::Uuid::new_v4();
+    let file_name = format!("{test_case_id}.zip");
+    let path = PathBuf::from("test-case").join(file_name);
+    ctx.storage
+        .as_ref()
+        .upload(path.as_path(), &file_content)
+        .await?;
+
+    prob.into_active_model()
+        .update_test_case_id(&ctx.db, Some(test_case_id.to_string()))
+        .await?;
+
+    format::empty_json()
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("problems")
@@ -117,4 +165,6 @@ pub fn routes() -> Routes {
         .add("/", get(list))
         .add("/:problem_id", get(get_problem))
         .add("/view/:problem_id", get(get_problem))
+        .add("/manage/:problem_id", put(upload_test_case))
+        .add("/:problem_id", put(upload_test_case))
 }

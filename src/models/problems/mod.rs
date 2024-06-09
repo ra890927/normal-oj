@@ -147,6 +147,22 @@ impl _entities::problems::Model {
     }
 }
 
+impl ActiveModel {
+    /// Update test case id. The actual file content is handled by app's storage.
+    ///
+    /// # Errors
+    ///
+    /// When has DB query error.
+    pub async fn update_test_case_id(
+        mut self,
+        db: &impl ConnectionTrait,
+        test_case_id: Option<String>,
+    ) -> ModelResult<Model> {
+        self.test_case_id = ActiveValue::set(test_case_id);
+        Ok(self.update(db).await?)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
