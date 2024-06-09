@@ -12,7 +12,7 @@ expression: response
   ],
   "pagination": {
     "page": 1,
-    "page_size": 10,
+    "page_size": 25,
     "total_pages": 1
   }
 }

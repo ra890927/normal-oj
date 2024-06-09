@@ -7,6 +7,7 @@ use loco_rs::{
     controller::AppRoutes,
     db::{self, truncate_table},
     environment::Environment,
+    storage::{self, Storage},
     task::Tasks,
     worker::{AppWorker, Processor},
     Result,
@@ -16,7 +17,7 @@ use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 
 use crate::{
     controllers,
-    models::_entities::{courses, users},
+    models::_entities::{courses, problem_descriptions, problem_tasks, problems, users},
     tasks,
     workers::downloader::DownloadWorker,
 };
@@ -45,6 +46,7 @@ impl Hooks for App {
     fn routes(_ctx: &AppContext) -> AppRoutes {
         AppRoutes::with_default_routes()
             .prefix("/api")
+            .add_route(controllers::problems::routes())
             .add_route(controllers::courses::routes())
             .add_route(controllers::notes::routes())
             .add_route(controllers::auth::routes())
@@ -60,8 +62,11 @@ impl Hooks for App {
     }
 
     async fn truncate(db: &DatabaseConnection) -> Result<()> {
+        truncate_table(db, problem_tasks::Entity).await?;
+        truncate_table(db, problems::Entity).await?;
         truncate_table(db, courses::Entity).await?;
         truncate_table(db, users::Entity).await?;
+        truncate_table(db, problem_descriptions::Entity).await?;
         Ok(())
     }
 
@@ -72,17 +77,37 @@ impl Hooks for App {
 
         // update auto inc id
         // ref: https://stackoverflow.com/a/55024610
-        db.execute(Statement::from_string(
-            DatabaseBackend::Postgres,
-            "SELECT SETVAL('users_id_seq', (SELECT max(id) FROM users))",
-        ))
-        .await?;
-        db.execute(Statement::from_string(
-            DatabaseBackend::Postgres,
-            "SELECT SETVAL('courses_id_seq', (SELECT max(id) FROM courses))",
-        ))
-        .await?;
+        // see also: https://github.com/loco-rs/loco/issues/239
+        let tables = [
+            "users",
+            "courses",
+            "problems",
+            "problem_descriptions",
+            "problem_tasks",
+        ];
+        for table in tables {
+            db.execute(Statement::from_string(
+                DatabaseBackend::Postgres,
+                format!(
+                    "SELECT SETVAL('{table}_id_seq', (SELECT COALESCE(MAX(id), 1) FROM {table}))"
+                ),
+            ))
+            .await?;
+        }
 
         Ok(())
+    }
+
+    async fn after_context(ctx: AppContext) -> Result<AppContext> {
+        let store = if ctx.environment == Environment::Test {
+            storage::drivers::mem::new()
+        } else {
+            storage::drivers::local::new_with_prefix("storage").map_err(Box::from)?
+        };
+
+        Ok(AppContext {
+            storage: Storage::single(store).into(),
+            ..ctx
+        })
     }
 }

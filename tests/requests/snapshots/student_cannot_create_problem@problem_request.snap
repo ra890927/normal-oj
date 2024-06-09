@@ -1,0 +1,7 @@
+---
+source: tests/requests/problems.rs
+expression: "response.json::<serde_json::Value>()"
+---
+Object {
+    "msg": String("Insufficient Permissions"),
+}
