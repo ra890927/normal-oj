@@ -8,6 +8,7 @@ use normal_oj::{
     models::problems::{self, Type, Visibility},
     models::users,
 };
+use sea_orm::ConnectionTrait;
 use serde_json::json;
 use serial_test::serial;
 use zip::write::SimpleFileOptions;
@@ -33,6 +34,12 @@ fn create_problem_payload() -> serde_json::Value {
             "sample_input": ["1 2"],
             "sample_output": ["3"],
         },
+        "tasks": [{
+            "test_case_count": 2,
+            "score": 100,
+            "time_limit": 1000,
+            "memory_limit": 65535,
+        }]
     })
 }
 
@@ -61,15 +68,19 @@ async fn student_cannot_create_problem() {
     .await;
 }
 
-fn make_test_case() -> zip::result::ZipResult<Vec<u8>> {
+async fn make_test_case<C: ConnectionTrait>(
+    db: &C,
+    problem: &problems::Model,
+) -> zip::result::ZipResult<Vec<u8>> {
+    let tasks = problem.tasks(db).await.unwrap();
     let mut buf = std::io::Cursor::new(Vec::new());
     {
         let mut test_case = zip::ZipWriter::new(&mut buf);
         let opt = SimpleFileOptions::default();
         test_case.add_directory("include/", opt)?;
         test_case.add_directory("share/", opt)?;
-        for task_i in 0..2 {
-            for case_i in 0..2 {
+        for (task_i, task) in tasks.iter().enumerate() {
+            for case_i in 0..task.test_case_count {
                 let in_path = format!("test-case/{task_i:02}{case_i:02}/STDIN");
                 test_case.start_file(in_path, opt)?;
                 test_case.write(b"1 2\n")?;
@@ -113,11 +124,17 @@ async fn admin_can_create_problem_and_test_case() {
                 r#type: Some(Type::Normal),
                 allowed_language: None,
                 quota: None,
+                tasks: vec![problems::tasks::AddParams {
+                    test_case_count: 2,
+                    score: 100,
+                    time_limit: 1000,
+                    memory_limit: 65535,
+                }],
             },
         )
         .await
         .unwrap();
-        let test_case_content = make_test_case().unwrap();
+        let test_case_content = make_test_case(&ctx.db, &problem).await.unwrap();
         let test_case = Part::bytes(test_case_content.clone()).file_name("test-case.zip");
         let form = MultipartForm::new().add_part("case", test_case);
         let response = request
@@ -170,6 +187,12 @@ async fn view_single_problem() {
                 r#type: Some(Type::Normal),
                 allowed_language: None,
                 quota: None,
+                tasks: vec![problems::tasks::AddParams {
+                    test_case_count: 2,
+                    score: 100,
+                    time_limit: 1000,
+                    memory_limit: 65535,
+                }],
             },
         )
         .await

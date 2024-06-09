@@ -25,6 +25,7 @@ pub struct CreateProblemRequest {
     pub r#type: Option<Type>,
     pub allowed_language: Option<i32>,
     pub quota: Option<i32>,
+    pub tasks: Vec<problems::tasks::AddParams>,
 }
 
 async fn create(
@@ -46,6 +47,7 @@ async fn create(
         r#type: params.r#type,
         allowed_language: params.allowed_language,
         quota: params.quota,
+        tasks: params.tasks,
     };
 
     let problem = problems::Model::add(&ctx.db, &params).await?;
@@ -141,6 +143,7 @@ async fn upload_test_case(
     };
 
     // TODO: validation test case content
+    prob.validate_test_case(&ctx.db, &file_content).await?;
 
     let test_case_id = uuid::Uuid::new_v4();
     let file_name = format!("{test_case_id}.zip");

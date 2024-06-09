@@ -1,10 +1,14 @@
 pub mod descriptions;
+pub mod tasks;
 pub mod test_case;
+
+use std::collections::HashSet;
 
 use super::_entities::{self, prelude::Problems, problems};
 use crate::models::transform_db_error;
 
 pub use _entities::problems::{ActiveModel, Model};
+use axum::body::Bytes;
 use loco_rs::model::{ModelError, ModelResult};
 use num_derive::FromPrimitive;
 use sea_orm::{entity::prelude::*, ActiveValue, Order, QueryOrder, TransactionTrait};
@@ -13,9 +17,20 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
+pub enum BadTestCase {
+    #[error("error reading zip file: {0}")]
+    ZipError(#[from] zip::result::ZipError),
+    #[error("{0}")]
+    Custom(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     #[error("user is not permitted to this operation")]
     PermissionDenied,
+    #[error("bad test cacse: {0}")]
+    BadTestCase(BadTestCase),
 }
 
 #[derive(Clone, Copy, Debug, Serialize_repr, Deserialize_repr, PartialEq, Eq, FromPrimitive)]
@@ -50,6 +65,7 @@ pub struct AddParams {
     pub r#type: Option<Type>,
     pub allowed_language: Option<i32>,
     pub quota: Option<i32>,
+    pub tasks: Vec<tasks::AddParams>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -103,6 +119,8 @@ impl _entities::problems::Model {
         .await
         .map_err(transform_db_error)?;
 
+        tasks::Model::add_many(&txn, problem.id, &params.tasks).await?;
+
         txn.commit().await.map_err(transform_db_error)?;
 
         Ok(problem)
@@ -144,6 +162,86 @@ impl _entities::problems::Model {
             .one(db)
             .await?;
         p.ok_or(ModelError::EntityNotFound)
+    }
+
+    pub async fn tasks<C: ConnectionTrait>(&self, db: &C) -> ModelResult<Vec<tasks::Model>> {
+        let tasks = self
+            .find_related(super::_entities::problem_tasks::Entity)
+            .order_by(super::_entities::problem_tasks::Column::Id, Order::Asc)
+            .all(db)
+            .await?;
+
+        Ok(tasks)
+    }
+
+    pub async fn validate_test_case<C: ConnectionTrait>(
+        &self,
+        db: &C,
+        test_case: &Bytes,
+    ) -> loco_rs::Result<()> {
+        let wrap_zip_error =
+            |e| loco_rs::Error::Any(Box::new(Error::BadTestCase(BadTestCase::ZipError(e))));
+        let custom_error =
+            |e| loco_rs::Error::Any(Box::new(Error::BadTestCase(BadTestCase::Custom(e))));
+
+        let cursor = std::io::Cursor::new(test_case);
+        let mut zipfile = zip::ZipArchive::new(cursor).map_err(|e| wrap_zip_error(e))?;
+
+        // TODO: valiadte according to problem test case meta
+        let tasks = self.tasks(db).await?;
+        let mut expected_input_output = tasks
+            .iter()
+            .enumerate()
+            .flat_map(|(i, t)| {
+                (0..t.test_case_count).flat_map(move |j| {
+                    vec![
+                        format!("test-case/{i:02}{j:02}/STDIN"),
+                        format!("test-case/{i:02}{j:02}/STDOUT"),
+                    ]
+                })
+            })
+            .collect::<HashSet<_>>();
+
+        for i in 0..zipfile.len() {
+            let file = zipfile.by_index(i).map_err(|e| wrap_zip_error(e))?;
+            if file.is_symlink() {
+                return Err(custom_error(format!(
+                    "symlink is not allowed: {}",
+                    file.name()
+                )));
+            }
+            // skip directory for now
+            if file.is_dir() {
+                continue;
+            }
+            let name = file.enclosed_name().ok_or(custom_error(format!(
+                "invalid path found in zip file: {}",
+                file.name()
+            )))?;
+            let name = name.to_str().ok_or(custom_error(format!(
+                "invalid path found in zip file (maybe non-UTF8 path?): {}",
+                file.name()
+            )))?;
+
+            if !expected_input_output.remove(name) {
+                return Err(custom_error(format!(
+                    "duplicated or extra file found: {}",
+                    file.name()
+                )));
+            }
+        }
+
+        if !expected_input_output.is_empty() {
+            return Err(custom_error(format!(
+                "missing files: {}",
+                expected_input_output
+                    .into_iter()
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )));
+        }
+
+        Ok(())
     }
 }
 

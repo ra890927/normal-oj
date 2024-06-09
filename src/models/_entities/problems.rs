@@ -31,6 +31,8 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     ProblemDescriptions,
+    #[sea_orm(has_many = "super::problem_tasks::Entity")]
+    ProblemTasks,
     #[sea_orm(
         belongs_to = "super::users::Entity",
         from = "Column::OwnerId",
@@ -44,6 +46,12 @@ pub enum Relation {
 impl Related<super::problem_descriptions::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ProblemDescriptions.def()
+    }
+}
+
+impl Related<super::problem_tasks::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ProblemTasks.def()
     }
 }
 
