@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod submission;
 pub mod user;
 
 use loco_rs::controller::views::pagination::PagerMeta;
