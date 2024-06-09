@@ -69,6 +69,7 @@ pub struct ProblemDetailResponse {
 
 impl ProblemDetailResponse {
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
         problem: &problems::Model,
