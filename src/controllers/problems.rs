@@ -100,13 +100,13 @@ async fn get_problem(
         .find_related(models::_entities::problem_descriptions::Entity)
         .one(&ctx.db)
         .await
-        .map_err(|err| transform_db_error(err))?
+        .map_err(transform_db_error)?
         .ok_or(ModelError::EntityNotFound)?;
     let owner = prob
         .find_related(models::_entities::users::Entity)
         .one(&ctx.db)
         .await
-        .map_err(|err| transform_db_error(err))?
+        .map_err(transform_db_error)?
         .ok_or(ModelError::EntityNotFound)?;
     let tasks = prob.tasks(&ctx.db).await?;
 
@@ -136,6 +136,10 @@ async fn upload_test_case(
         else {
             return Err(Error::BadRequest("cloud not find test case file".into()));
         };
+
+        if !matches!(field.content_type(), Some("application/x-zip")) {
+            continue;
+        }
 
         break field.bytes().await.map_err(|err| {
             tracing::error!(error = ?err,"could not read bytes");

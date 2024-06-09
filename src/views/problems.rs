@@ -24,6 +24,9 @@ pub struct ProblemListResponseItem {
 pub struct ProblemListResponse {}
 
 impl ProblemListResponse {
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(problems: &[problems::Model]) -> NojResponseBuilder<Vec<ProblemListResponseItem>> {
         let data = problems
             .iter()
@@ -65,6 +68,8 @@ pub struct ProblemDetailResponse {
 }
 
 impl ProblemDetailResponse {
+    #[must_use]
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(
         problem: &problems::Model,
         description: &problems::descriptions::Model,
@@ -81,7 +86,7 @@ impl ProblemDetailResponse {
             quota: problem.quota,
             status: Visibility::from_i32(problem.status).unwrap(),
             r#type: Type::from_i32(problem.r#type).unwrap(),
-            test_case: tasks.iter().cloned().collect(),
+            test_case: tasks.to_vec(),
             submit_count: 0,
             high_score: 0,
         };

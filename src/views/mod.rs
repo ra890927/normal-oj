@@ -27,7 +27,7 @@ impl<T> NojResponseBuilder<T> {
     pub fn new(data: T) -> Self {
         Self {
             data,
-            message: "".to_string(),
+            message: String::new(),
         }
     }
 

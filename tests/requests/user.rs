@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use insta::{assert_debug_snapshot, assert_json_snapshot, with_settings};
-use loco_rs::{app::AppContext, testing};
+use loco_rs::testing;
 use normal_oj::{
     app::App,
     models::users::{self, Role},

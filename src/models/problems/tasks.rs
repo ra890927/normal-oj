@@ -14,6 +14,11 @@ pub struct AddParams {
 }
 
 impl Model {
+    /// Add multiple problem tasks to DB
+    ///
+    /// # Errors
+    ///
+    /// When there is DB error.
     pub async fn add_many<C: ConnectionTrait + TransactionTrait>(
         db: &C,
         problem_id: i32,

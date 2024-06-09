@@ -1,8 +1,8 @@
 use std::{io::Write, path::Path};
 
 use axum_test::multipart::{MultipartForm, Part};
-use insta::{assert_debug_snapshot, assert_json_snapshot, with_settings};
-use loco_rs::{app::AppContext, testing};
+use insta::{assert_debug_snapshot, with_settings};
+use loco_rs::testing;
 use normal_oj::{
     app::App,
     models::problems::{self, Type, Visibility},
@@ -83,10 +83,10 @@ async fn make_test_case<C: ConnectionTrait>(
             for case_i in 0..task.test_case_count {
                 let in_path = format!("test-case/{task_i:02}{case_i:02}/STDIN");
                 test_case.start_file(in_path, opt)?;
-                test_case.write(b"1 2\n")?;
+                test_case.write_all(b"1 2\n")?;
                 let out_path = format!("test-case/{task_i:02}{case_i:02}/STDOUT");
                 test_case.start_file(out_path, opt)?;
-                test_case.write(b"3\n")?;
+                test_case.write_all(b"3\n")?;
             }
         }
     }
@@ -114,10 +114,10 @@ async fn admin_can_create_problem_and_test_case() {
                 name: "test-course".to_string(),
                 status: Some(Visibility::Show),
                 description: problems::descriptions::AddParams {
-                    description: "".to_string(),
-                    input: "".to_string(),
-                    output: "".to_string(),
-                    hint: "".to_string(),
+                    description: String::new(),
+                    input: String::new(),
+                    output: String::new(),
+                    hint: String::new(),
                     sample_input: vec![],
                     sample_output: vec![],
                 },
@@ -177,10 +177,10 @@ async fn view_single_problem() {
                 name: "test-course".to_string(),
                 status: Some(Visibility::Show),
                 description: problems::descriptions::AddParams {
-                    description: "".to_string(),
-                    input: "".to_string(),
-                    output: "".to_string(),
-                    hint: "".to_string(),
+                    description: String::new(),
+                    input: String::new(),
+                    output: String::new(),
+                    hint: String::new(),
                     sample_input: vec![],
                     sample_output: vec![],
                 },

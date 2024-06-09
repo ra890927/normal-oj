@@ -164,6 +164,11 @@ impl _entities::problems::Model {
         p.ok_or(ModelError::EntityNotFound)
     }
 
+    /// Find problem tasks from DB
+    ///
+    /// # Errors
+    ///
+    /// When there is DB error.
     pub async fn tasks<C: ConnectionTrait>(&self, db: &C) -> ModelResult<Vec<tasks::Model>> {
         let tasks = self
             .find_related(super::_entities::problem_tasks::Entity)
@@ -174,6 +179,13 @@ impl _entities::problems::Model {
         Ok(tasks)
     }
 
+    /// Validate test case binary according to current problem test case meta.
+    ///
+    /// # Errors
+    ///
+    /// - When the given binary is not a zip file
+    /// - When the zip file contains invalid files
+    /// - When there is missing/extra files inside zip
     pub async fn validate_test_case<C: ConnectionTrait>(
         &self,
         db: &C,
@@ -185,7 +197,7 @@ impl _entities::problems::Model {
             |e| loco_rs::Error::Any(Box::new(Error::BadTestCase(BadTestCase::Custom(e))));
 
         let cursor = std::io::Cursor::new(test_case);
-        let mut zipfile = zip::ZipArchive::new(cursor).map_err(|e| wrap_zip_error(e))?;
+        let mut zipfile = zip::ZipArchive::new(cursor).map_err(wrap_zip_error)?;
 
         // TODO: valiadte according to problem test case meta
         let tasks = self.tasks(db).await?;
@@ -203,7 +215,7 @@ impl _entities::problems::Model {
             .collect::<HashSet<_>>();
 
         for i in 0..zipfile.len() {
-            let file = zipfile.by_index(i).map_err(|e| wrap_zip_error(e))?;
+            let file = zipfile.by_index(i).map_err(wrap_zip_error)?;
             if file.is_symlink() {
                 return Err(custom_error(format!(
                     "symlink is not allowed: {}",
@@ -214,14 +226,15 @@ impl _entities::problems::Model {
             if file.is_dir() {
                 continue;
             }
-            let name = file.enclosed_name().ok_or(custom_error(format!(
-                "invalid path found in zip file: {}",
-                file.name()
-            )))?;
-            let name = name.to_str().ok_or(custom_error(format!(
-                "invalid path found in zip file (maybe non-UTF8 path?): {}",
-                file.name()
-            )))?;
+            let name = file.enclosed_name().ok_or_else(|| {
+                custom_error(format!("invalid path found in zip file: {}", file.name()))
+            })?;
+            let name = name.to_str().ok_or_else(|| {
+                custom_error(format!(
+                    "invalid path found in zip file (maybe non-UTF8 path?): {}",
+                    file.name()
+                ))
+            })?;
 
             if !expected_input_output.remove(name) {
                 return Err(custom_error(format!(
