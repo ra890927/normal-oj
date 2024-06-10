@@ -31,7 +31,7 @@ impl<T> NojResponseBuilder<T> {
         }
     }
 
-    pub fn message(&mut self, message: String) -> &mut Self {
+    pub fn message(mut self, message: String) -> Self {
         self.message = message;
         self
     }
