@@ -1,7 +1,11 @@
 use serde::Serialize;
 
 use super::NojResponseBuilder;
-use crate::models::submissions::{self, Language, SubmissionStatus};
+use crate::models::{
+    submissions::{self, Language, SubmissionStatus},
+    users,
+};
+use crate::views::user::UserInfoResponse;
 
 impl Into<i32> for SubmissionStatus {
     fn into(self) -> i32 {
@@ -60,7 +64,7 @@ impl From<i32> for Language {
 #[derive(Debug, Serialize)]
 pub struct SubmissionListResponseItem {
     pub id: i32,
-    pub user_id: i32,
+    pub user: UserInfoResponse,
     pub problem_id: i32,
     pub timestamp: i64,
     pub score: i32,
@@ -80,12 +84,13 @@ impl SubmissionListResponse {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
         submissions: &[submissions::Model],
+        users: &[users::Model],
     ) -> NojResponseBuilder<Vec<SubmissionListResponseItem>> {
         let data = submissions
             .iter()
-            .map(|p| SubmissionListResponseItem {
+            .zip(users)
+            .map(|(p, u)| SubmissionListResponseItem {
                 id: p.id,
-                user_id: p.user_id,
                 problem_id: p.problem_id,
                 timestamp: p.timestamp.and_utc().timestamp(),
                 score: p.score,
@@ -95,6 +100,7 @@ impl SubmissionListResponse {
                 last_send: p.last_send.and_utc().timestamp(),
                 memory_usage: p.memory_usage,
                 code: p.code.to_string(),
+                user: UserInfoResponse::new(u),
             })
             .collect();
 
