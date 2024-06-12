@@ -35,9 +35,17 @@ impl MigrationTrait for Migration {
         let table = table_auto(Submissions::Table)
             .col(pk_auto(Submissions::Id))
             .col(integer(Submissions::UserId))
-            .col(integer(Submissions::Score).default(0))
             .col(integer(Submissions::ProblemId))
             .col(timestamp(Submissions::Timestamp))
+            .col(integer(Submissions::Score).default(0))
+            .col(integer(Submissions::ExecTime).default(0))
+            .col(integer(Submissions::MemoryUsage).default(0))
+            .col(text(Submissions::Code).default(""))
+            .col(
+                timestamp(Submissions::LastSend)
+                    .default(Expr::current_timestamp())
+                    .not_null(),
+            )
             .col(
                 ColumnDef::new(Submissions::Status)
                     .enumeration(status_alias.clone(), SubmissionStatus::iter())
@@ -83,6 +91,10 @@ enum Submissions {
     ProblemId,
     Language,
     Timestamp,
+    ExecTime,
+    MemoryUsage,
+    Code,
+    LastSend,
 }
 
 #[derive(DeriveIden, EnumIter)]

@@ -13,9 +13,14 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub user_id: i32,
-    pub score: i32,
     pub problem_id: i32,
     pub timestamp: DateTime,
+    pub score: i32,
+    pub exec_time: i32,
+    pub memory_usage: i32,
+    #[sea_orm(column_type = "Text")]
+    pub code: String,
+    pub last_send: DateTime,
     pub status: SubmissionStatus,
     pub language: Language,
 }
