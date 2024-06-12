@@ -1,30 +1,44 @@
 use axum::extract::Query;
+use chrono::offset::Utc;
+use chrono::DateTime;
 use format::render;
 use loco_rs::prelude::*;
 use serde::Deserialize;
 
 use crate::{
-    models::submissions::{self, Language},
+    models::{self, submissions, transform_db_error},
     views::submission::SubmissionListResponse,
 };
 
+use super::find_user_by_auth;
+
 #[derive(Debug, Deserialize)]
 pub struct CreateSubmissionRequest {
-    pub user: i32,
-    pub problem: i32,
-    pub timestamp: DateTime,
-    pub language: Language,
+    pub problem_id: i32,
+    pub timestamp: i64,
+    pub language: i32,
 }
 
 async fn create(
     State(ctx): State<AppContext>,
+    auth: auth::JWT,
     Json(params): Json<CreateSubmissionRequest>,
 ) -> Result<Response> {
+    let user = match find_user_by_auth(&ctx, &auth).await {
+        Ok(u) => u,
+        Err(e) => return e,
+    };
+
+    println!("{:?}", user);
+
     let params = submissions::AddParams {
-        user: params.user,
-        problem: params.problem,
-        timestamp: params.timestamp,
-        language: params.language,
+        user: user.id,
+        problem: params.problem_id,
+        // timestamp: DateTime::from_str(&params.timestamp).map_err(Box::from)?,
+        timestamp: DateTime::<Utc>::from_timestamp(params.timestamp, 0)
+            .unwrap()
+            .naive_utc(),
+        language: params.language.into(),
     };
 
     let submission = submissions::Model::add(&ctx.db, &params).await?;
@@ -58,8 +72,19 @@ async fn list(
     };
 
     let submissions = submissions::Model::list(&ctx.db, &params).await?;
+    let mut users = vec![];
 
-    format::json(SubmissionListResponse::new(&submissions).done())
+    for s in &submissions {
+        let u = s
+            .find_related(models::_entities::users::Entity)
+            .one(&ctx.db)
+            .await
+            .map_err(transform_db_error)?
+            .ok_or(ModelError::EntityNotFound)?;
+        users.push(u);
+    }
+
+    format::json(SubmissionListResponse::new(&submissions, &users).done())
 }
 
 #[derive(Debug, Deserialize)]
