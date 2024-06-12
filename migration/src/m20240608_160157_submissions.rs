@@ -34,6 +34,12 @@ impl MigrationTrait for Migration {
 
         let table = table_auto(Submissions::Table)
             .col(pk_auto(Submissions::Id))
+            .foreign_key(
+                ForeignKey::create()
+                    .name("fk-submission-user_id")
+                    .from(Submissions::Table, Submissions::UserId)
+                    .to(Users::Table, Users::Id),
+            )
             .col(integer(Submissions::UserId))
             .col(integer(Submissions::ProblemId))
             .col(timestamp(Submissions::Timestamp))
@@ -115,4 +121,10 @@ enum SubmissionLanguage {
     C,
     CPP,
     Python,
+}
+
+#[derive(DeriveIden)]
+enum Users {
+    Table,
+    Id,
 }
