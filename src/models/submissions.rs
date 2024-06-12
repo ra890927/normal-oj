@@ -30,12 +30,25 @@ impl ActiveModelBehavior for ActiveModel {
 }
 
 impl ActiveModel {
-    pub async fn update_score<C: ConnectionTrait>(
+    pub async fn update_sandbox_result<C: ConnectionTrait>(
         mut self,
         db: &C,
         score: i32,
+        exec_time: i32,
+        memory_usage: i32,
     ) -> ModelResult<Model> {
         self.score = ActiveValue::set(score);
+        self.exec_time = ActiveValue::set(exec_time);
+        self.memory_usage = ActiveValue::set(memory_usage);
+        Ok(self.update(db).await?)
+    }
+
+    pub async fn update_code<C: ConnectionTrait>(
+        mut self,
+        db: &C,
+        code: String,
+    ) -> ModelResult<Model> {
+        self.code = ActiveValue::set(code);
         Ok(self.update(db).await?)
     }
 }
@@ -110,6 +123,6 @@ impl Model {
             .filter(column.eq(value))
             .one(db)
             .await?;
-        submission.ok_or_else(|| ModelError::EntityNotFound)
+        submission.ok_or(ModelError::EntityNotFound)
     }
 }
