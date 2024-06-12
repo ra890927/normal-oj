@@ -3,7 +3,6 @@
 pub mod prelude;
 
 pub mod courses;
-pub mod notes;
 pub mod problem_descriptions;
 pub mod problem_tasks;
 pub mod problems;

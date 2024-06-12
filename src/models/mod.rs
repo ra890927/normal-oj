@@ -1,7 +1,6 @@
 pub mod _entities;
 pub mod courses;
 pub mod language;
-pub mod notes;
 pub mod problems;
 pub mod submissions;
 pub mod users;

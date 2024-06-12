@@ -9,7 +9,7 @@ use loco_rs::{
     environment::Environment,
     storage::{self, Storage},
     task::Tasks,
-    worker::{AppWorker, Processor},
+    worker::Processor,
     Result,
 };
 use migration::Migrator;
@@ -21,7 +21,6 @@ use crate::{
         courses, problem_descriptions, problem_tasks, problems, submissions, users,
     },
     tasks,
-    workers::downloader::DownloadWorker,
 };
 
 pub struct App;
@@ -50,15 +49,12 @@ impl Hooks for App {
             .prefix("/api")
             .add_route(controllers::problems::routes())
             .add_route(controllers::courses::routes())
-            .add_route(controllers::notes::routes())
             .add_route(controllers::auth::routes())
             .add_route(controllers::user::routes())
             .add_route(controllers::submissions::routes())
     }
 
-    fn connect_workers<'a>(p: &'a mut Processor, ctx: &'a AppContext) {
-        p.register(DownloadWorker::build(ctx));
-    }
+    fn connect_workers<'a>(_: &'a mut Processor, _: &'a AppContext) {}
 
     fn register_tasks(tasks: &mut Tasks) {
         tasks.register(tasks::seed::SeedData);
