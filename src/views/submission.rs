@@ -1,3 +1,4 @@
+use eyre::eyre;
 use serde::Serialize;
 
 use super::NojResponseBuilder;
@@ -7,9 +8,9 @@ use crate::models::{
 };
 use crate::views::user::UserInfoResponse;
 
-impl Into<i32> for SubmissionStatus {
-    fn into(self) -> i32 {
-        match self {
+impl From<SubmissionStatus> for i32 {
+    fn from(val: SubmissionStatus) -> Self {
+        match val {
             SubmissionStatus::Pending => -1,
             SubmissionStatus::Accepted => 0,
             SubmissionStatus::WrongAnswer => 1,
@@ -23,26 +24,27 @@ impl Into<i32> for SubmissionStatus {
     }
 }
 
-impl From<i32> for SubmissionStatus {
-    fn from(val: i32) -> Self {
+impl TryFrom<i32> for SubmissionStatus {
+    type Error = eyre::Error;
+    fn try_from(val: i32) -> Result<Self, eyre::Error> {
         match val {
-            -1 => SubmissionStatus::Pending,
-            0 => SubmissionStatus::Accepted,
-            1 => SubmissionStatus::WrongAnswer,
-            2 => SubmissionStatus::ComileError,
-            3 => SubmissionStatus::TimeLimitError,
-            4 => SubmissionStatus::MemoryLimitError,
-            5 => SubmissionStatus::RuntimeError,
-            6 => SubmissionStatus::JudgeError,
-            7 => SubmissionStatus::OutputLimitError,
-            _ => panic!("error submission type"),
+            -1 => Ok(Self::Pending),
+            0 => Ok(Self::Accepted),
+            1 => Ok(Self::WrongAnswer),
+            2 => Ok(Self::ComileError),
+            3 => Ok(Self::TimeLimitError),
+            4 => Ok(Self::MemoryLimitError),
+            5 => Ok(Self::RuntimeError),
+            6 => Ok(Self::JudgeError),
+            7 => Ok(Self::OutputLimitError),
+            _ => Err(eyre!("error submission type")),
         }
     }
 }
 
-impl Into<i32> for Language {
-    fn into(self) -> i32 {
-        match self {
+impl From<Language> for i32 {
+    fn from(val: Language) -> Self {
+        match val {
             Language::C => 0,
             Language::Cpp => 1,
             Language::Python => 2,
@@ -50,18 +52,20 @@ impl Into<i32> for Language {
     }
 }
 
-impl From<i32> for Language {
-    fn from(val: i32) -> Self {
+impl TryFrom<i32> for Language {
+    type Error = eyre::Error;
+    fn try_from(val: i32) -> Result<Self, eyre::Error> {
         match val {
-            0 => Language::C,
-            1 => Language::Cpp,
-            2 => Language::Python,
-            _ => panic!("error language type"),
+            0 => Ok(Self::C),
+            1 => Ok(Self::Cpp),
+            2 => Ok(Self::Python),
+            _ => Err(eyre!("error language type")),
         }
     }
 }
 
 #[derive(Debug, Serialize)]
+#[allow(clippy::module_name_repetitions)]
 pub struct SubmissionListResponseItem {
     pub id: i32,
     pub user: UserInfoResponse,
@@ -76,6 +80,7 @@ pub struct SubmissionListResponseItem {
     pub language: i32,
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub struct SubmissionListResponse {}
 
 impl SubmissionListResponse {

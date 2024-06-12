@@ -30,6 +30,11 @@ impl ActiveModelBehavior for ActiveModel {
 }
 
 impl ActiveModel {
+    /// Update submission sandbox result
+    ///
+    /// # Errors
+    ///
+    /// When could not save the problem into DB
     pub async fn update_sandbox_result<C: ConnectionTrait>(
         mut self,
         db: &C,
@@ -43,6 +48,11 @@ impl ActiveModel {
         Ok(self.update(db).await?)
     }
 
+    /// Update submission code
+    ///
+    /// # Errors
+    ///
+    /// When could not save the problem into DB
     pub async fn update_code<C: ConnectionTrait>(
         mut self,
         db: &C,
@@ -68,7 +78,7 @@ impl Model {
         let submission = ActiveModel {
             user_id: ActiveValue::set(params.user),
             problem_id: ActiveValue::set(params.problem),
-            timestamp: ActiveValue::set(params.timestamp.clone()),
+            timestamp: ActiveValue::set(params.timestamp),
             language: ActiveValue::set(params.language.clone()),
             ..Default::default()
         }
@@ -92,13 +102,13 @@ impl Model {
             q = q.filter(submissions::Column::ProblemId.eq(problem));
         }
         if let Some(user) = params.user {
-            q = q.filter(submissions::Column::UserId.eq(user))
+            q = q.filter(submissions::Column::UserId.eq(user));
         }
         if let Some(status) = &params.status {
-            q = q.filter(submissions::Column::Status.eq(status.clone()))
+            q = q.filter(submissions::Column::Status.eq(status.clone()));
         }
         if let Some(language) = &params.language {
-            q = q.filter(submissions::Column::Language.eq(language.clone()))
+            q = q.filter(submissions::Column::Language.eq(language.clone()));
         }
 
         let submissions = q.all(db).await?.into_iter();
@@ -110,11 +120,16 @@ impl Model {
         Ok(submissions.collect())
     }
 
+    /// Get submission by id
+    ///
+    /// # Errors
+    ///
+    /// When could not save the problem into DB
     pub async fn find_by_id<C: ConnectionTrait>(db: &C, id: i32) -> ModelResult<Self> {
         Self::find_by_column(db, submissions::Column::Id, id).await
     }
 
-    pub async fn find_by_column<C: ConnectionTrait>(
+    async fn find_by_column<C: ConnectionTrait>(
         db: &C,
         column: impl sea_orm::ColumnTrait,
         value: impl Into<sea_orm::Value> + Send,

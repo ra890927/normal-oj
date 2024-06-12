@@ -29,16 +29,13 @@ async fn create(
         Err(e) => return e,
     };
 
-    println!("{:?}", user);
-
     let params = submissions::AddParams {
         user: user.id,
         problem: params.problem_id,
-        // timestamp: DateTime::from_str(&params.timestamp).map_err(Box::from)?,
         timestamp: DateTime::<Utc>::from_timestamp(params.timestamp, 0)
             .unwrap()
             .naive_utc(),
-        language: params.language.into(),
+        language: params.language.try_into().unwrap(),
     };
 
     let submission = submissions::Model::add(&ctx.db, &params).await?;
@@ -66,8 +63,8 @@ async fn list(
         count: params.count,
         problem: params.problem,
         user: params.user,
-        status: params.status.map(|s| s.into()),
-        language: params.language.map(|l| l.into()),
+        status: params.status.map(|s| s.try_into().unwrap()),
+        language: params.language.map(|l| l.try_into().unwrap()),
         course: params.course.clone(),
     };
 
