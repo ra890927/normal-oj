@@ -1,5 +1,5 @@
-use normal_oj::app::App;
 use loco_rs::testing;
+use normal_oj::app::App;
 use serial_test::serial;
 
 macro_rules! configure_insta {

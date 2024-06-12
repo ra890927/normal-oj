@@ -119,7 +119,7 @@ enum SubmissionStatus {
 #[derive(DeriveIden, EnumIter)]
 enum SubmissionLanguage {
     C,
-    CPP,
+    Cpp,
     Python,
 }
 
